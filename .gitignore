@@ -1,0 +1,12 @@
+node_modules/
+node_modules
+echo "node_modules/" >> .gitignore
+echo ".cache/" >> .gitignore
+git add .gitignore
+git commit -m "Add node_modules and cache to gitignore"
+# eslint cache
+.eslintcache
+# Ignore node_modules and cache
+node_modules/
+.cache/
+*.log
