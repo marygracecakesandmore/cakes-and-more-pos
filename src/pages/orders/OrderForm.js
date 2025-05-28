@@ -740,7 +740,7 @@ const submitOrder = async (orderData) => {
             }}>
               <Autocomplete
                 options={products.filter(p => p.available !== false)}
-                getOptionLabel={(product) => `${product.name} - ₱${product.price.toFixed(2)}`}
+                getOptionLabel={(product) => `${product.name} - K${product.price.toFixed(2)}`}
                 value={products.find(p => p.id === selectedProduct) || null}
                 onChange={(event, newValue) => {
                   setSelectedProduct(newValue?.id || '');
@@ -847,7 +847,7 @@ const submitOrder = async (orderData) => {
                               FREE
                             </Typography>
                           ) : (
-                            `₱${item.price.toFixed(2)}`
+                            `K${item.price.toFixed(2)}`
                           )}
                         </TableCell>
                         <TableCell align="center">
@@ -887,7 +887,7 @@ const submitOrder = async (orderData) => {
                           </Box>
                         </TableCell>
                         <TableCell align="right" sx={{ fontWeight: '500' }}>
-                          {item.isReward ? 'FREE' : `₱${(item.price * item.quantity).toFixed(2)}`}
+                          {item.isReward ? 'FREE' : `K${(item.price * item.quantity).toFixed(2)}`}
                         </TableCell>
                         <TableCell align="center">
                           <IconButton 
@@ -917,14 +917,14 @@ const submitOrder = async (orderData) => {
                         fontSize: '1rem'
                       }}>
                         <Box>
-                          <Typography>₱{totalAmount.toFixed(2)}</Typography>
+                          <Typography>K{totalAmount.toFixed(2)}</Typography>
                           {discountApplied > 0 && (
                             <>
                               <Typography variant="body2" color="error.main">
-                                - ₱{discountApplied.toFixed(2)} (Discount)
+                                - K{discountApplied.toFixed(2)} (Discount)
                               </Typography>
                               <Typography variant="subtitle1">
-                                ₱{(totalAmount - discountApplied).toFixed(2)}
+                                K{(totalAmount - discountApplied).toFixed(2)}
                               </Typography>
                             </>
                           )}
@@ -1031,7 +1031,7 @@ const submitOrder = async (orderData) => {
                     </Typography>
                     <Box display="flex" alignItems="center" justifyContent="space-between">
                       <Typography variant="body2" fontWeight="600">
-                        ₱{suggestion.price.toFixed(2)}
+                        K{suggestion.price.toFixed(2)}
                       </Typography>
                       <Button
                         variant="outlined"
@@ -1114,8 +1114,8 @@ const submitOrder = async (orderData) => {
               onClick={() => repeatOrder(order)}
             >
               <ListItemText
-                primary={`Order #${order.id.slice(0, 8)}`}
-                secondary={`${format(order.createdAt.toDate(), 'MMM dd, yyyy')} - ₱${order.total.toFixed(2)}`}
+                primary={`Order #${order.id.slice(0, 4)}`}
+                secondary={`${format(order.createdAt.toDate(), 'MMM dd, yyyy')} - K${order.total.toFixed(2)}`}
               />
             </ListItem>
           ))
@@ -1243,7 +1243,7 @@ const submitOrder = async (orderData) => {
     <DialogTitle>Confirm Large Order</DialogTitle>
     <DialogContent>
       <Typography variant="body1" gutterBottom>
-        This order has a total of ₱{pendingOrder?.total?.toFixed(2)} with {pendingOrder?.items?.length} items.
+        This order has a total of K{pendingOrder?.total?.toFixed(2)} with {pendingOrder?.items?.length} items.
       </Typography>
       <Typography variant="body2" color="text.secondary">
         Please confirm this order is correct before submitting.
@@ -1262,12 +1262,12 @@ const submitOrder = async (orderData) => {
               <TableRow key={index}>
                 <TableCell>{item.name}</TableCell>
                 <TableCell align="right">{item.quantity}</TableCell>
-                <TableCell align="right">₱{(item.price * item.quantity).toFixed(2)}</TableCell>
+                <TableCell align="right">K{(item.price * item.quantity).toFixed(2)}</TableCell>
               </TableRow>
             ))}
             <TableRow>
               <TableCell colSpan={2} align="right"><strong>Total:</strong></TableCell>
-              <TableCell align="right"><strong>₱{pendingOrder?.total?.toFixed(2)}</strong></TableCell>
+              <TableCell align="right"><strong>K{pendingOrder?.total?.toFixed(2)}</strong></TableCell>
             </TableRow>
           </TableBody>
         </Table>

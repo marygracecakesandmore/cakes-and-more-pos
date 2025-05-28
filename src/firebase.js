@@ -5,12 +5,12 @@ import { getFirestore } from "firebase/firestore";
 
 // Your Firebase configuration (replace with your actual config)
 const firebaseConfig = {
-  apiKey: "AIzaSyAi2wIe0U7X3p3H_j-ziN_67H82gbgQU4Y",
-  authDomain: "coffeeshopsystem-923ed.firebaseapp.com",
-  projectId: "coffeeshopsystem-923ed",
-  storageBucket: "coffeeshopsystem-923ed.firebasestorage.app",
-  messagingSenderId: "622503359203",
-  appId: "1:622503359203:web:396e8a62117f4d67a28bd6"
+  apiKey: "AIzaSyDm43cvWtD4fV6vh8Eko5ABWah3PqdvXY0",
+  authDomain: "cakes-and-more-pos.firebaseapp.com",
+  projectId: "cakes-and-more-pos",
+  storageBucket: "cakes-and-more-pos.firebasestorage.app",
+  messagingSenderId: "1090207986442",
+  appId: "1:1090207986442:web:a9cdf9ab3243c38770c0f3"
 };
 
 // Initialize Firebase

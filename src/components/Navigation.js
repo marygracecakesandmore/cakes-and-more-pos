@@ -1,6 +1,7 @@
 // src/components/Navigation.js
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import logo from '../assets/logo.png';
 import { 
   AppBar, 
   Toolbar, 
@@ -492,29 +493,36 @@ const getNotificationColor = (type) => {
         py: 1
       }}>
         <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          gap: 2
-        }}>
-          <Typography 
-            variant="h6" 
-            component={Link} 
-            to="/"
-            sx={{ 
-              textDecoration: 'none',
-              color: 'primary.main',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              fontFamily: '"Playfair Display", serif',
-              letterSpacing: 0.5
-            }}
-          >
-            CaféManager
-          </Typography>
+  display: 'flex', 
+  alignItems: 'center',
+  gap: 2
+}}>
+  <Typography 
+    variant="h6" 
+    component={Link} 
+    to="/"
+    sx={{ 
+      textDecoration: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      height: '64px', // Increased container height
+      padding: '12px 0' // Added padding for better spacing
+    }}
+  >
+    <img 
+      src={logo} 
+      alt="Café Logo" 
+      style={{ 
+        height: '48px', // Increased from 40px to 48px
+        width: 'auto',
+        maxWidth: '100%',
+        objectFit: 'contain'
+      }} 
+    />
+  </Typography>
 
-          {!isMobile && renderDesktopNavItems()}
-        </Box>
+  {!isMobile && renderDesktopNavItems()}
+</Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {user && (

@@ -497,7 +497,7 @@ const Menu = () => {
                       alignItems: 'center'
                     }}>
                 
-                      ₱{(product.price || 0).toFixed(2)}
+                      K{(product.price || 0).toFixed(2)}
                     </Typography>
                     <Button 
                       variant="contained" 

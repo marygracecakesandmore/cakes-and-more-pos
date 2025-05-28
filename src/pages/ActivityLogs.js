@@ -238,12 +238,12 @@ const ActivityLogs = () => {
                           </Typography>
                           {log.orderId && (
                             <Typography variant="caption" color="text.secondary">
-                              Order #{log.orderId.slice(0, 8)}
+                              Order #{log.orderId.slice(0, 4)}
                             </Typography>
                           )}
                           {log.amount && (
                             <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                              ${log.amount}
+                              K{log.amount}
                             </Typography>
                           )}
                         </TableCell>

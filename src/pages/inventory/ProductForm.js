@@ -224,7 +224,7 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
                   }
                 }}
                 InputProps={{
-                  startAdornment: <InputAdornment position="start">₱</InputAdornment>,
+                  startAdornment: <InputAdornment position="start">K</InputAdornment>,
                 }}
               />
             </Grid>

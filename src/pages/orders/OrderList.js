@@ -52,7 +52,7 @@ const OrderList = ({ orders, onOrderClick }) => {
               onClick={() => onOrderClick(order)}
               sx={{ cursor: 'pointer' }}
             >
-              <TableCell>#{order.id.slice(0, 8)}</TableCell>
+              <TableCell>#{order.id.slice(0, 4)}</TableCell>
               <TableCell>{order.customerName}</TableCell>
               <TableCell>
                 {order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM dd, yyyy HH:mm') : 'N/A'}
@@ -66,7 +66,7 @@ const OrderList = ({ orders, onOrderClick }) => {
                   ))}
                 </Box>
               </TableCell>
-              <TableCell>₱{order.total?.toFixed(2) || '0.00'}</TableCell>
+              <TableCell>K{order.total?.toFixed(2) || '0.00'}</TableCell>
               <TableCell>
                 <Chip 
                   label={order.status.replace('-', ' ')}

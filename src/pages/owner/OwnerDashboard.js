@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../../firebase';
+import logo from '../../assets/logo.png';
 import { 
   doc, getDoc, collection, query, where, getDocs, 
   orderBy, limit, onSnapshot, serverTimestamp 
@@ -385,25 +386,36 @@ const calculateQueueEfficiency = (queueItems) => {
   const doc = new jsPDF();
   let currentY = 20;
   
-  // Add coffee shop logo and header
+  // Add logo and header with improved styling
+  try {
+    doc.addImage(logo, 'PNG', 14, 10, 40, 20);
+  } catch (e) {
+    console.warn('Could not load logo:', e);
+  }
+  
   doc.setFontSize(20);
-  doc.setTextColor(93, 64, 55); // Brew Haven brown color
-  doc.text('BREW HAVEN COFFEE', 105, currentY, { align: 'center' });
-  currentY += 10;
+  doc.setTextColor(150, 50, 80); // Mary Grace brand color
+  doc.text('MARY GRACE CAKES AND MORE', 105, currentY + 10, { align: 'center' });
+  currentY += 20;
   
   doc.setFontSize(16);
   doc.text('Sales Performance Report', 105, currentY, { align: 'center' });
   currentY += 15;
   
-  // Report metadata
+  // Report metadata with improved styling
   doc.setFontSize(10);
-  doc.setTextColor(100);
+  doc.setTextColor(80);
+  doc.setDrawColor(150, 50, 80);
+  doc.setLineWidth(0.5);
+  doc.line(14, currentY, 196, currentY);
+  currentY += 5;
+  
   doc.text(`Report generated on: ${format(new Date(), 'MMMM d, yyyy h:mm a')}`, 14, currentY);
   doc.text(`Prepared for: ${userData?.name || 'Owner'}`, 105, currentY, { align: 'center' });
   doc.text(`Page 1`, 190, currentY, { align: 'right' });
   currentY += 10;
   
-  // Summary section
+  // Summary section with improved styling
   doc.setFontSize(12);
   doc.setTextColor(0);
   doc.setFont(undefined, 'bold');
@@ -412,9 +424,9 @@ const calculateQueueEfficiency = (queueItems) => {
   
   doc.setFont(undefined, 'normal');
   const summaryData = [
-    { label: 'Total Revenue', value: (stats.totalRevenue || 0).toFixed(2) },
-    { label: 'Monthly Revenue', value: (stats.monthlyRevenue || 0).toFixed(2) },
-    { label: 'Weekly Revenue', value: (stats.weeklyRevenue || 0).toFixed(2) },
+    { label: 'Total Revenue', value: `K ${(stats.totalRevenue || 0).toFixed(2)}` },
+    { label: 'Monthly Revenue', value: `K ${(stats.monthlyRevenue || 0).toFixed(2)}` },
+    { label: 'Weekly Revenue', value: `K ${(stats.weeklyRevenue || 0).toFixed(2)}` },
     { label: 'Total Orders', value: stats.totalOrders.toString() }
   ];
   
@@ -423,12 +435,20 @@ const calculateQueueEfficiency = (queueItems) => {
     head: [['Metric', 'Value']],
     body: summaryData.map(item => [item.label, item.value]),
     theme: 'grid',
-    headStyles: { fillColor: [93, 64, 55] }, // Brew Haven brown
-    styles: { cellPadding: 5 }
+    headStyles: { 
+      fillColor: [150, 50, 80],
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    styles: { 
+      cellPadding: 5,
+      fontSize: 11
+    },
+    margin: { left: 14 }
   });
   currentY = doc.lastAutoTable.finalY + 15;
   
-  // Top Products section with pagination
+  // Top Products section with improved styling
   doc.setFont(undefined, 'bold');
   doc.text('Top Selling Products', 14, currentY);
   currentY += 7;
@@ -437,7 +457,7 @@ const calculateQueueEfficiency = (queueItems) => {
     (index + 1).toString(),
     product.name,
     product.count.toString(),
-    product.revenue.toFixed(2)
+    `K ${product.revenue.toFixed(2)}`
   ]);
   
   autoTable(doc, {
@@ -445,22 +465,30 @@ const calculateQueueEfficiency = (queueItems) => {
     head: [['#', 'Product', 'Quantity Sold', 'Revenue']],
     body: topProductsData,
     theme: 'grid',
-    headStyles: { fillColor: [93, 64, 55] },
-    styles: { cellPadding: 5 },
+    headStyles: { 
+      fillColor: [150, 50, 80],
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    styles: { 
+      cellPadding: 5,
+      fontSize: 10
+    },
+    margin: { left: 14 },
     pageBreak: 'auto'
   });
   currentY = doc.lastAutoTable.finalY + 15;
   
-  // Recent Orders section with pagination
+  // Recent Orders section with improved styling
   doc.setFont(undefined, 'bold');
   doc.text('Recent Orders', 14, currentY);
   currentY += 7;
   
   const ordersData = recentOrders.map(order => [
-    `#${order.id.slice(0, 6)}`,
+    `#${order.id.slice(0, 4)}`,
     order.customerName || 'Walk-in',
     order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A',
-    order.total?.toFixed(2) || '0.00'
+    `K ${order.total?.toFixed(2) || '0.00'}`
   ]);
   
   autoTable(doc, {
@@ -468,22 +496,33 @@ const calculateQueueEfficiency = (queueItems) => {
     head: [['Order ID', 'Customer', 'Date', 'Total']],
     body: ordersData,
     theme: 'grid',
-    headStyles: { fillColor: [93, 64, 55] },
-    styles: { cellPadding: 5 },
+    headStyles: { 
+      fillColor: [150, 50, 80],
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    styles: { 
+      cellPadding: 5,
+      fontSize: 10
+    },
+    margin: { left: 14 },
     pageBreak: 'auto'
   });
   
-  // Add page numbers
+  // Add page numbers with improved footer
   const pageCount = doc.internal.getNumberOfPages();
   for(let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(10);
     doc.setTextColor(100);
+    doc.setDrawColor(150, 50, 80);
+    doc.setLineWidth(0.5);
+    doc.line(14, 280, 196, 280);
     doc.text(`Page ${i} of ${pageCount}`, 190, 285, { align: 'right' });
-    doc.text('Brew Haven Coffee - Confidential', 14, 285);
+    doc.text('Mary Grace Cakes and More - Confidential', 14, 285);
   }
   
-  doc.save('brew-haven-sales-report.pdf');
+  doc.save('Mary Grace Cakes and More - Sales Report.pdf');
   handlePrintMenuClose();
 };
 
@@ -491,11 +530,17 @@ const generateAttendanceReport = () => {
   const doc = new jsPDF();
   let currentY = 20;
   
-  // Header
+  // Header with Mary Grace styling
+  try {
+    doc.addImage(logo, 'PNG', 14, 10, 40, 20);
+  } catch (e) {
+    console.warn('Could not load logo:', e);
+  }
+  
   doc.setFontSize(20);
-  doc.setTextColor(93, 64, 55);
-  doc.text('BREW HAVEN COFFEE', 105, currentY, { align: 'center' });
-  currentY += 10;
+  doc.setTextColor(150, 50, 80);
+  doc.text('MARY GRACE CAKES AND MORE', 105, currentY + 10, { align: 'center' });
+  currentY += 20;
   
   doc.setFontSize(16);
   doc.text('Staff Attendance Report', 105, currentY, { align: 'center' });
@@ -503,7 +548,12 @@ const generateAttendanceReport = () => {
   
   // Metadata
   doc.setFontSize(10);
-  doc.setTextColor(100);
+  doc.setTextColor(80);
+  doc.setDrawColor(150, 50, 80);
+  doc.setLineWidth(0.5);
+  doc.line(14, currentY, 196, currentY);
+  currentY += 5;
+  
   doc.text(`Report generated on: ${format(new Date(), 'MMMM d, yyyy h:mm a')}`, 14, currentY);
   doc.text(`Prepared for: ${userData?.name || 'Owner'}`, 105, currentY, { align: 'center' });
   doc.text(`Page 1`, 190, currentY, { align: 'right' });
@@ -528,22 +578,33 @@ const generateAttendanceReport = () => {
     head: [['Staff Name', 'Shifts Completed', 'Punctuality (1-5)', 'Avg. Duration']],
     body: staffData,
     theme: 'grid',
-    headStyles: { fillColor: [93, 64, 55] },
-    styles: { cellPadding: 5 },
+    headStyles: { 
+      fillColor: [150, 50, 80],
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    styles: { 
+      cellPadding: 5,
+      fontSize: 10
+    },
+    margin: { left: 14 },
     pageBreak: 'auto'
   });
   
-  // Add page numbers
+  // Add page numbers with improved footer
   const pageCount = doc.internal.getNumberOfPages();
   for(let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(10);
     doc.setTextColor(100);
+    doc.setDrawColor(150, 50, 80);
+    doc.setLineWidth(0.5);
+    doc.line(14, 280, 196, 280);
     doc.text(`Page ${i} of ${pageCount}`, 190, 285, { align: 'right' });
-    doc.text('Brew Haven Coffee - Confidential', 14, 285);
+    doc.text('Mary Grace Cakes and More - Confidential', 14, 285);
   }
   
-  doc.save('brew-haven-attendance-report.pdf');
+  doc.save('Mary Grace Cakes and More - Attendance Report.pdf');
   handlePrintMenuClose();
 };
 
@@ -551,11 +612,17 @@ const generateInventoryReport = () => {
   const doc = new jsPDF();
   let currentY = 20;
   
-  // Header
+  // Header with Mary Grace styling
+  try {
+    doc.addImage(logo, 'PNG', 14, 10, 40, 20);
+  } catch (e) {
+    console.warn('Could not load logo:', e);
+  }
+  
   doc.setFontSize(20);
-  doc.setTextColor(93, 64, 55);
-  doc.text('BREW HAVEN COFFEE', 105, currentY, { align: 'center' });
-  currentY += 10;
+  doc.setTextColor(150, 50, 80);
+  doc.text('MARY GRACE CAKES AND MORE', 105, currentY + 10, { align: 'center' });
+  currentY += 20;
   
   doc.setFontSize(16);
   doc.text('Inventory Management Report', 105, currentY, { align: 'center' });
@@ -563,7 +630,12 @@ const generateInventoryReport = () => {
   
   // Metadata
   doc.setFontSize(10);
-  doc.setTextColor(100);
+  doc.setTextColor(80);
+  doc.setDrawColor(150, 50, 80);
+  doc.setLineWidth(0.5);
+  doc.line(14, currentY, 196, currentY);
+  currentY += 5;
+  
   doc.text(`Report generated on: ${format(new Date(), 'MMMM d, yyyy h:mm a')}`, 14, currentY);
   doc.text(`Prepared for: ${userData?.name || 'Owner'}`, 105, currentY, { align: 'center' });
   doc.text(`Page 1`, 190, currentY, { align: 'right' });
@@ -577,7 +649,7 @@ const generateInventoryReport = () => {
   currentY += 7;
   
   doc.setFont(undefined, 'normal');
-  doc.text(`Total Inventory Value: ${stats.inventoryValue.toFixed(2)}`, 14, currentY);
+  doc.text(`Total Inventory Value: K ${(stats.inventoryValue || 0).toFixed(2)}`, 14, currentY);
   currentY += 10;
   
   // Products List with pagination
@@ -588,8 +660,8 @@ const generateInventoryReport = () => {
   const inventoryData = products.map(product => [
     product.name,
     (product.stock || 0).toString(),
-    product.price.toFixed(2),
-    (product.price * (product.stock || 0)).toFixed(2),
+    `K ${product.price.toFixed(2)}`,
+    `K ${(product.price * (product.stock || 0)).toFixed(2)}`,
     product.available ? 'Yes' : 'No'
   ]);
   
@@ -598,22 +670,33 @@ const generateInventoryReport = () => {
     head: [['Product', 'Stock', 'Unit Price', 'Total Value', 'Available']],
     body: inventoryData,
     theme: 'grid',
-    headStyles: { fillColor: [93, 64, 55] },
-    styles: { cellPadding: 5 },
+    headStyles: { 
+      fillColor: [150, 50, 80],
+      textColor: 255,
+      fontStyle: 'bold'
+    },
+    styles: { 
+      cellPadding: 5,
+      fontSize: 10
+    },
+    margin: { left: 14 },
     pageBreak: 'auto'
   });
   
-  // Add page numbers
+  // Add page numbers with improved footer
   const pageCount = doc.internal.getNumberOfPages();
   for(let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(10);
     doc.setTextColor(100);
+    doc.setDrawColor(150, 50, 80);
+    doc.setLineWidth(0.5);
+    doc.line(14, 280, 196, 280);
     doc.text(`Page ${i} of ${pageCount}`, 190, 285, { align: 'right' });
-    doc.text('Brew Haven Coffee - Confidential', 14, 285);
+    doc.text('Mary Grace Cakes and More - Confidential', 14, 285);
   }
   
-  doc.save('brew-haven-inventory-report.pdf');
+  doc.save('Mary Grace Cakes and More - Inventory Report.pdf');
   handlePrintMenuClose();
 };
 
@@ -704,7 +787,7 @@ const generateInventoryReport = () => {
             />
             <CardContent>
               <Typography variant="h4" sx={{ color: '#3e2723', fontWeight: 700 }}>
-                ₱{(stats.totalRevenue || 0).toFixed(2)}
+                K{(stats.totalRevenue || 0).toFixed(2)}
               </Typography>
               <Typography variant="body2" sx={{ color: '#8d6e63', mt: 1 }}>
                 All-time sales
@@ -739,7 +822,7 @@ const generateInventoryReport = () => {
             />
             <CardContent>
               <Typography variant="h4" sx={{ color: '#3e2723', fontWeight: 700 }}>
-                ₱{(stats.monthlyRevenue || 0).toFixed(2)}
+                K{(stats.monthlyRevenue || 0).toFixed(2)}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                 <Typography variant="body2" sx={{ 
@@ -819,7 +902,7 @@ const generateInventoryReport = () => {
             />
             <CardContent>
               <Typography variant="h4" sx={{ color: '#3e2723', fontWeight: 700 }}>
-                ₱{(stats.inventoryValue || 0).toFixed(2)}
+                K{(stats.inventoryValue || 0).toFixed(2)}
               </Typography>
               <Typography variant="body2" sx={{ color: '#8d6e63', mt: 1 }}>
                 Current stock worth
@@ -865,7 +948,7 @@ const generateInventoryReport = () => {
                     curveType: 'function',
                     legend: { position: 'bottom' },
                     hAxis: { title: 'Date' },
-                    vAxis: { title: 'Revenue (₱)' },
+                    vAxis: { title: 'Revenue (K)' },
                     colors: ['#8d6e63'],
                     backgroundColor: 'transparent'
                   }}
@@ -923,7 +1006,7 @@ const generateInventoryReport = () => {
                         {index + 1}. {product.name}
                       </Typography>
                       <Typography variant="subtitle1" sx={{ color: '#5d4037' }}>
-                        ₱{product.revenue.toFixed(2)}
+                        K{product.revenue.toFixed(2)}
                       </Typography>
                     </Box>
                     <LinearProgress 
@@ -995,10 +1078,10 @@ const generateInventoryReport = () => {
                   }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="subtitle1" sx={{ color: '#5d4037' }}>
-                        Order #{order.id.slice(0, 6)}
+                        Order #{order.id.slice(0, 4)}
                       </Typography>
                       <Typography variant="subtitle1" sx={{ color: '#5d4037' }}>
-                        ₱{(order.total || 0).toFixed(2)}
+                        K{(order.total || 0).toFixed(2)}
                       </Typography>
                     </Box>
                     <Typography variant="body2" sx={{ color: '#8d6e63' }}>

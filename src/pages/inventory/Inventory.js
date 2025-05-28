@@ -277,7 +277,7 @@ const Inventory = () => {
                       size="small"
                     />
                   </TableCell>
-                  <TableCell>₱{product.price.toFixed(2)}</TableCell>
+                  <TableCell>K{product.price.toFixed(2)}</TableCell>
                   <TableCell>{product.stock}</TableCell>
                   <TableCell>
                     <Switch

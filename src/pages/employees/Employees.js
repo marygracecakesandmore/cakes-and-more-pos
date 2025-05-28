@@ -1,6 +1,6 @@
 // src/pages/employees/Employees.js
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
 import { 
   Box, 
@@ -25,13 +25,17 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Tooltip
+  Tooltip,
+  Tab,
+  Tabs,
+  Badge
 } from '@mui/material';
 import EmployeeForm from './EmployeeForm';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
+import ListIcon from '@mui/icons-material/List';
 import { generateReferralCode } from '../../utils/referralUtils';
 
 const roles = [
@@ -51,6 +55,9 @@ const Employees = () => {
   const [generatedCode, setGeneratedCode] = useState('');
   const [referralRole, setReferralRole] = useState('staff');
   const [activeReferralCodes, setActiveReferralCodes] = useState({});
+  const [referralCodesDialogOpen, setReferralCodesDialogOpen] = useState(false);
+  const [employeeReferralCodes, setEmployeeReferralCodes] = useState([]);
+  const [tabValue, setTabValue] = useState('all');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -86,6 +93,23 @@ const Employees = () => {
 
     fetchData();
   }, []);
+
+  const fetchEmployeeReferralCodes = async (employeeId) => {
+    try {
+      const q = query(
+        collection(db, 'referralCodes'),
+        where('ownerId', '==', employeeId)
+      );
+      const querySnapshot = await getDocs(q);
+      const codes = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setEmployeeReferralCodes(codes);
+    } catch (error) {
+      console.error('Error fetching referral codes:', error);
+    }
+  };
 
   const handleUpdateEmployee = async (employeeData) => {
     try {
@@ -154,6 +178,12 @@ const Employees = () => {
     setReferralRole('staff');
   };
 
+  const openReferralCodesDialog = async (employee) => {
+    setSelectedEmployee(employee);
+    await fetchEmployeeReferralCodes(employee.id);
+    setReferralCodesDialogOpen(true);
+  };
+
   const getRoleColor = (roleValue) => {
     const role = roles.find(r => r.value === roleValue);
     return role ? role.color : 'default';
@@ -162,6 +192,17 @@ const Employees = () => {
   const getRoleLabel = (roleValue) => {
     const role = roles.find(r => r.value === roleValue);
     return role ? role.label : roleValue;
+  };
+
+  const filteredReferralCodes = () => {
+    switch (tabValue) {
+      case 'active':
+        return employeeReferralCodes.filter(code => !code.used);
+      case 'used':
+        return employeeReferralCodes.filter(code => code.used);
+      default:
+        return employeeReferralCodes;
+    }
   };
 
   if (loading) {
@@ -179,14 +220,16 @@ const Employees = () => {
       </Typography>
       
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setReferralDialogOpen(true)}
-          sx={{ mb: 2 }}
-        >
-          Generate Referral Code
-        </Button>
+        <Box>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setReferralDialogOpen(true)}
+            sx={{ mb: 2, mr: 2 }}
+          >
+            Generate Referral Code
+          </Button>
+        </Box>
         
         {showForm && (
           <EmployeeForm 
@@ -223,7 +266,12 @@ const Employees = () => {
                   />
                 </TableCell>
                 <TableCell>
-                  {activeReferralCodes[employee.id] || 0}
+                  <Button 
+                    onClick={() => openReferralCodesDialog(employee)}
+                    startIcon={<ListIcon />}
+                  >
+                    {activeReferralCodes[employee.id] || 0}
+                  </Button>
                 </TableCell>
                 <TableCell>
                   <IconButton 
@@ -285,11 +333,7 @@ const Employees = () => {
                 label="Role for Referral"
               >
                 {roles.map(role => (
-                  <MenuItem 
-                    key={role.value} 
-                    value={role.value}
-                    disabled={role.value === 'owner'} // Prevent generating owner referral codes
-                  >
+                  <MenuItem key={role.value} value={role.value}>
                     {role.label}
                   </MenuItem>
                 ))}
@@ -331,6 +375,97 @@ const Employees = () => {
           >
             Add Referral Code
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View Referral Codes Dialog */}
+      <Dialog
+        open={referralCodesDialogOpen}
+        onClose={() => setReferralCodesDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Referral Codes for {selectedEmployee?.firstName} {selectedEmployee?.lastName}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ width: '100%' }}>
+            <Tabs
+              value={tabValue}
+              onChange={(e, newValue) => setTabValue(newValue)}
+              sx={{ mb: 3 }}
+            >
+              <Tab label="All" value="all" />
+              <Tab 
+                label={
+                  <Badge 
+                    badgeContent={employeeReferralCodes.filter(c => !c.used).length} 
+                    color="primary"
+                  >
+                    Active
+                  </Badge>
+                } 
+                value="active" 
+              />
+              <Tab 
+                label={
+                  <Badge 
+                    badgeContent={employeeReferralCodes.filter(c => c.used).length} 
+                    color="secondary"
+                  >
+                    Used
+                  </Badge>
+                } 
+                value="used" 
+              />
+            </Tabs>
+          </Box>
+          
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Code</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Created At</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredReferralCodes().map(code => (
+                  <TableRow key={code.id}>
+                    <TableCell>{code.code}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={getRoleLabel(code.role)} 
+                        color={getRoleColor(code.role)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={code.used ? 'Used' : 'Active'}
+                        color={code.used ? 'default' : 'success'}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {code.createdAt?.toDate().toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Tooltip title="Copy to clipboard">
+                        <IconButton onClick={() => handleCopyToClipboard(code.code)}>
+                          <ContentCopyIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setReferralCodesDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

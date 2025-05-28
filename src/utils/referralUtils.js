@@ -9,7 +9,11 @@ export const generateReferralCode = (role) => {
 
 export const validateReferralCode = async (code) => {
   try {
-    // Check if code matches the format and exists in database
+    // Check code format (should be XXXXXX-ROLE)
+    if (!/^[A-Z0-9]{6}-[A-Z]+$/.test(code)) {
+      return false;
+    }
+
     const q = query(
       collection(db, 'referralCodes'),
       where('code', '==', code),
@@ -34,9 +38,16 @@ export const markReferralCodeAsUsed = async (code) => {
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
       const docRef = querySnapshot.docs[0].ref;
-      await updateDoc(docRef, { used: true, usedAt: new Date() });
+      await updateDoc(docRef, { 
+        used: true, 
+        usedAt: new Date(),
+        // You might want to add more info here later
+      });
+      return true;
     }
+    return false;
   } catch (error) {
     console.error('Error marking referral code as used:', error);
+    return false;
   }
 };

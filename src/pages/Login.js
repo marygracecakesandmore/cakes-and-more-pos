@@ -8,27 +8,27 @@ import {
   Avatar, CssBaseline, Slide, Fade, CircularProgress
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
-import CoffeeIcon from '@mui/icons-material/Coffee';
+import logo from '../assets/logo.png';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import backgroundImage from '../assets/coffee-beans-bg.jpg';
+import backgroundImage from '../assets/background_4.jpg'; // Changed background image import
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#6F4E37', // Coffee brown
-      light: '#A67B5B', // Lighter coffee
-      dark: '#4B3621', // Dark coffee
+      main: '#1976D2', // Blue
+      light: '#64B5F6', // Light blue
+      dark: '#0D47A1', // Dark blue
     },
     secondary: {
-      main: '#D2B48C', // Tan
+      main: '#4DB6AC', // Teal
     },
     background: {
       default: '#F5F5F5',
-      paper: '#FFF8F0', // Cream
+      paper: '#FFFFFF', // White
     },
   },
   typography: {
-    fontFamily: '"Playfair Display", serif',
+    fontFamily: '"Roboto", sans-serif',
     h1: {
       fontWeight: 700,
       fontSize: '2.5rem',
@@ -81,7 +81,7 @@ const Login = () => {
           minHeight: '100vh',
           display: 'flex',
           alignItems: 'center',
-          backgroundImage: `linear-gradient(rgba(255, 248, 240, 0.9), rgba(255, 248, 240, 0.9)), url(${backgroundImage})`,
+          backgroundImage: `linear-gradient(rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.9)), url(${backgroundImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           py: 4,
@@ -101,14 +101,14 @@ const Login = () => {
                 <Avatar
                   sx={{
                     m: 1,
-                    bgcolor: 'primary.main',
-                    width: 80,
-                    height: 80,
+                    bgcolor: 'transparent',
+                    width: 120,
+                    height: 120,
                     boxShadow: 3,
                   }}
-                >
-                  <CoffeeIcon fontSize="large" />
-                </Avatar>
+                  src={logo}
+                  alt="Mary Grace Cakes & More Logo"
+                />
               </Fade>
               <Typography
                 component="h1"
@@ -117,9 +117,10 @@ const Login = () => {
                   mb: 2,
                   color: 'primary.dark',
                   textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
+                  textAlign: 'center',
                 }}
               >
-                Brew Haven
+                Welcome to Mary Grace Cakes
               </Typography>
 
               <Paper
@@ -129,8 +130,8 @@ const Login = () => {
                   width: '100%',
                   borderRadius: theme.shape.borderRadius * 2,
                   backgroundColor: 'background.paper',
-                  boxShadow: '0 8px 20px rgba(111, 78, 55, 0.15)',
-                  border: '1px solid rgba(111, 78, 55, 0.1)',
+                  boxShadow: '0 8px 20px rgba(25, 118, 210, 0.15)',
+                  border: '1px solid rgba(25, 118, 210, 0.1)',
                 }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -138,10 +139,10 @@ const Login = () => {
                     <LockOutlinedIcon />
                   </Avatar>
                   <Typography component="h2" variant="h2" sx={{ color: 'primary.dark' }}>
-                    Welcome Back
+                    Login to Your Account
                   </Typography>
                   <Typography variant="body1" sx={{ mt: 1, color: 'text.secondary' }}>
-                    Sign in to your account
+                    Please enter your credentials to access the system
                   </Typography>
                 </Box>
 
@@ -214,7 +215,7 @@ const Login = () => {
                       '&:hover': {
                         bgcolor: 'primary.dark',
                         transform: 'translateY(-2px)',
-                        boxShadow: '0 4px 8px rgba(111, 78, 55, 0.3)',
+                        boxShadow: '0 4px 8px rgba(25, 118, 210, 0.3)',
                       },
                       transition: 'all 0.3s ease',
                     }}

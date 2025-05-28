@@ -6,6 +6,9 @@ import { auth, db } from '../firebase';
 import { QrCode } from '@mui/icons-material';
 import QRCode from 'react-qr-code';
 import { RateReview } from '@mui/icons-material';
+import autoTable from 'jspdf-autotable';
+import logo from '../assets/logo.png';
+
 
 import { jsPDF } from 'jspdf';
 import * as ExcelJS from 'exceljs';
@@ -227,113 +230,118 @@ const generatePDFReport = async () => {
     doc.setProperties({
       title: `Sales Report - ${format(new Date(), 'yyyy-MM-dd')}`,
       subject: 'Staff Sales Report',
-      author: userData?.firstName || user.email,
-      creator: 'Coffee Shop POS'
+      author: userData?.name || user.email,
+      creator: 'Mary Grace Cakes and More POS'
     });
     
-    // Add title
-    doc.setFontSize(18);
-    doc.setTextColor(111, 78, 55); // Coffee brown color
+    let currentY = 20;
+    
+    // Add logo and header
+    try {
+      doc.addImage(logo, 'PNG', 14, 10, 40, 20);
+    } catch (e) {
+      console.warn('Could not load logo:', e);
+    }
+    
+    // Title with Mary Grace styling
+    doc.setFontSize(20);
+    doc.setTextColor(150, 50, 80);
     doc.setFont('helvetica', 'bold');
-    doc.text('MY SALES REPORT', 105, 20, { align: 'center' });
+    doc.text('MARY GRACE CAKES AND MORE', 105, currentY + 10, { align: 'center' });
+    currentY += 20;
     
-    // Add date range
-    doc.setFontSize(12);
-    doc.setTextColor(128, 128, 128); // Gray color
-    doc.setFont('helvetica', 'normal');
-    doc.text(
-      `From ${format(new Date(salesReportDateRange.start), 'MMM d, yyyy')} to ${format(new Date(salesReportDateRange.end), 'MMM d, yyyy')}`, 
-      105, 
-      28, 
-      { align: 'center' }
-    );
+    doc.setFontSize(16);
+    doc.text('Staff Sales Report', 105, currentY, { align: 'center' });
+    currentY += 15;
     
-    // Add staff info
+    // Report metadata with improved styling and proper alignment
     doc.setFontSize(10);
-    doc.text(`Staff: ${userData?.firstName || user.email}`, 20, 35);
-    doc.text(`Generated: ${format(new Date(), 'MMM d, yyyy h:mm a')}`, 20, 40);
+    doc.setTextColor(80);
+    doc.setDrawColor(150, 50, 80);
+    doc.setLineWidth(0.5);
+    doc.line(14, currentY, 196, currentY);
+    currentY += 5;
     
-    // Add summary stats
+    // Create three columns for metadata
+    const leftCol = 14;
+    const centerCol = 105;
+    const rightCol = 190;
+    
+    // Left-aligned report period (on its own line)
+    doc.text(`Report Period: ${format(new Date(salesReportDateRange.start), 'MMM d, yyyy')} to ${format(new Date(salesReportDateRange.end), 'MMM d, yyyy')}`, leftCol, currentY);
+    currentY += 7; // Move down for next line
+    
+    // Staff name (on its own line)
+    const staffName = `Staff: ${userData?.name || user.email}`;
+    doc.text(staffName, leftCol, currentY);
+    
+    // Right-aligned page number (on its own line at the top)
+    doc.text(`Page 1`, rightCol, currentY - 7, { align: 'right' });
+    currentY += 10;
+    
+    // Summary stats with PNG currency
     const totalSales = salesData.reduce((sum, order) => sum + (order.total || 0), 0);
     const totalOrders = salesData.length;
     
     doc.setFontSize(12);
-    doc.setTextColor(111, 78, 55); // Coffee brown color
+    doc.setTextColor(0);
     doc.setFont('helvetica', 'bold');
-    doc.text('SUMMARY', 20, 50);
+    doc.text('Performance Summary', leftCol, currentY);
+    currentY += 7;
     
-    doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0); // Black color
+    doc.text(`Total Orders Processed: ${totalOrders}`, leftCol, currentY);
+    currentY += 7;
+    doc.text(`Total Sales Generated: K ${totalSales.toFixed(2)}`, leftCol, currentY);
+    currentY += 15;
     
-    doc.text(`Total Orders: ${totalOrders}`, 20, 60);
-    doc.text(`Total Sales: ${totalSales.toFixed(2)}`, 20, 65);
+    // Sales table with improved styling
+    const tableData = salesData.map(order => [
+      `#${order.id.slice(0, 4)}`, // Only first 4 characters
+      order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM d, yyyy h:mm a') : format(new Date(order.createdAt), 'MMM d, yyyy h:mm a') || 'N/A',
+      order.customerName || 'Walk-in',
+      `K ${order.total?.toFixed(2) || '0.00'}`,
+      order.status || 'completed' // Show actual status or default to 'completed'
+    ]);
     
-    // Add table headers
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255); // White text
-    doc.setFillColor(111, 78, 55); // Coffee brown background
-    
-    // Header row
-    doc.rect(15, 75, 180, 8, 'F');
-    doc.text('Order ID', 20, 80);
-    doc.text('Date', 50, 80);
-    doc.text('Customer', 80, 80);
-    doc.text('Amount', 140, 80, { align: 'right' });
-    doc.text('Status', 180, 80, { align: 'right' });
-    
-    // Add table rows
-    let y = 85;
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0); // Black text
-    
-    salesData.forEach((order, index) => {
-      if (y > 280 && index < salesData.length - 1) {
-        doc.addPage();
-        y = 20;
-        // Repeat headers on new page
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(255, 255, 255);
-        doc.rect(15, y, 180, 8, 'F');
-        doc.text('Order ID', 20, y+5);
-        doc.text('Date', 50, y+5);
-        doc.text('Customer', 80, y+5);
-        doc.text('Amount', 140, y+5, { align: 'right' });
-        doc.text('Status', 180, y+5, { align: 'right' });
-        y += 15;
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(0, 0, 0);
-      }
-      
-      // Alternate row colors
-      if (index % 2 === 0) {
-        doc.setFillColor(242, 239, 233); // Light coffee color
-        doc.rect(15, y-3, 180, 7, 'F');
-      }
-      
-      const customerText = order.customerName || 'Walk-in';
-// Wrap customer name if it's too long
-const wrappedCustomer = doc.splitTextToSize(customerText, 50); // max width 50mm
-
-doc.text(order.id.slice(0, 8), 20, y);
-doc.text(format(order.createdAt, 'MMM d h:mm a'), 50, y);
-doc.text(wrappedCustomer, 80, y); // Multiline if needed
-doc.text(order.total?.toFixed(2) || '0.00', 140, y, { align: 'right' });
-doc.text(order.status || 'completed', 180, y, { align: 'right' });
-
-// Adjust y position based on line count of customer name
-y += wrappedCustomer.length * 5;
-
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Order ID', 'Date', 'Customer', 'Amount', 'Status']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [150, 50, 80],
+        textColor: 255,
+        fontStyle: 'bold'
+      },
+      styles: { 
+        cellPadding: 5,
+        fontSize: 10
+      },
+      margin: { left: leftCol },
+      columnStyles: {
+        0: { cellWidth: 30 }, // Fixed width for Order ID
+        1: { cellWidth: 40 }, // Fixed width for Date
+        3: { cellWidth: 25, halign: 'right' },
+        4: { cellWidth: 20, halign: 'center' }
+      },
+      pageBreak: 'auto'
     });
     
-    // Add footer
-    doc.setFontSize(8);
-    doc.setTextColor(128, 128, 128);
-    doc.text(`Generated by Coffee Shop POS - ${format(new Date(), 'yyyy-MM-dd h:mm a')}`, 105, 290, { align: 'center' });
+    // Add page numbers with improved footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for(let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.setDrawColor(150, 50, 80);
+      doc.setLineWidth(0.5);
+      doc.line(leftCol, 280, 196, 280);
+      doc.text(`Page ${i} of ${pageCount}`, rightCol, 285, { align: 'right' });
+      doc.text('Mary Grace Cakes and More - Confidential', leftCol, 285);
+    }
     
-    // Save the PDF
-    doc.save(`MySalesReport_${format(new Date(), 'yyyyMMdd')}.pdf`);
+    doc.save('Mary Grace Cakes and More - Staff Sales Report.pdf');
     showSnackbar('PDF report generated successfully!', 'success');
   } catch (error) {
     console.error('Error generating PDF:', error);
@@ -353,72 +361,99 @@ const generateExcelReport = async () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Sales Report');
     
-    // Add title and metadata
+    // Add title and metadata with Mary Grace styling
     worksheet.mergeCells('A1:E1');
-    worksheet.getCell('A1').value = 'My Sales Report';
-    worksheet.getCell('A1').font = { size: 16, bold: true };
-    worksheet.getCell('A1').alignment = { horizontal: 'center' };
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = 'MARY GRACE CAKES AND MORE';
+    titleCell.font = { 
+      size: 16, 
+      bold: true,
+      color: { argb: '963250' } // Mary Grace brand color
+    };
+    titleCell.alignment = { horizontal: 'center' };
     
     worksheet.mergeCells('A2:E2');
-    worksheet.getCell('A2').value = `From ${format(new Date(salesReportDateRange.start), 'MMM d, yyyy')} to ${format(new Date(salesReportDateRange.end), 'MMM d, yyyy')}`;
-    worksheet.getCell('A2').alignment = { horizontal: 'center' };
+    const subtitleCell = worksheet.getCell('A2');
+    subtitleCell.value = 'Staff Sales Report';
+    subtitleCell.font = { 
+      size: 14,
+      bold: true
+    };
+    subtitleCell.alignment = { horizontal: 'center' };
     
-    worksheet.getCell('A3').value = `Staff: ${userData?.firstName || user.email}`;
-    worksheet.getCell('A4').value = `Generated: ${format(new Date(), 'MMM d, yyyy h:mm a')}`;
+    worksheet.mergeCells('A3:E3');
+    const dateRangeCell = worksheet.getCell('A3');
+    dateRangeCell.value = `From ${format(new Date(salesReportDateRange.start), 'MMM d, yyyy')} to ${format(new Date(salesReportDateRange.end), 'MMM d, yyyy')}`;
+    dateRangeCell.alignment = { horizontal: 'center' };
     
-    // Add summary stats
+    worksheet.getCell('A4').value = `Staff: ${userData?.name || user.email}`;
+    worksheet.getCell('A5').value = `Generated: ${format(new Date(), 'MMM d, yyyy h:mm a')}`;
+    
+    // Add summary stats with PNG currency
     const totalSales = salesData.reduce((sum, order) => sum + (order.total || 0), 0);
     const totalOrders = salesData.length;
     
-    worksheet.getCell('A6').value = 'Summary';
-    worksheet.getCell('A6').font = { bold: true };
-    worksheet.getCell('A7').value = `Total Orders: ${totalOrders}`;
-    worksheet.getCell('A8').value = `Total Sales: ${totalSales.toFixed(2)}`;
+    worksheet.getCell('A7').value = 'Performance Summary';
+    worksheet.getCell('A7').font = { bold: true };
+    worksheet.getCell('A8').value = `Total Orders Processed: ${totalOrders}`;
+    worksheet.getCell('A9').value = `Total Sales Generated: K ${totalSales.toFixed(2)}`;
     
-    // Add table headers
-    const headers = ['Order ID', 'Date', 'Customer', 'Amount', 'Status'];
+    // Add table headers with Mary Grace styling
+    const headers = ['Order ID', 'Date', 'Customer', 'Amount (K)', 'Status'];
     worksheet.addRow(headers);
     
     // Style headers
-    const headerRow = worksheet.getRow(10);
+    const headerRow = worksheet.getRow(11);
     headerRow.eachCell((cell) => {
-      cell.font = { bold: true };
+      cell.font = { bold: true, color: { argb: 'FFFFFF' } };
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FFD4A762' }
+        fgColor: { argb: '963250' } // Mary Grace brand color
       };
+      cell.alignment = { horizontal: 'center' };
     });
     
     // Add data rows
     salesData.forEach((order) => {
-      worksheet.addRow([
-        order.id.slice(0, 8),
-        format(order.createdAt, 'MMM d h:mm a'),
+      const row = worksheet.addRow([
+        `#${order.id.slice(0, 4)}`, // Only first 4 characters
+        order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM d, yyyy h:mm a') : format(new Date(order.createdAt), 'MMM d, yyyy h:mm a') || 'N/A',
         order.customerName || 'Walk-in',
         order.total || 0,
-        order.status || 'completed'
+        order.status || 'completed' // Show actual status or default to 'completed'
       ]);
+      
+      // Format the amount column with K currency
+      const amountCell = row.getCell(4);
+      amountCell.numFmt = '"K"#,##0.00';
+      
+      // Center the status column
+      row.getCell(5).alignment = { horizontal: 'center' };
     });
     
-    // Format the amount column
-    worksheet.getColumn(4).numFmt = '#,##0.00';
-    
-    // Auto-fit columns
+    // Auto-fit columns with some padding
     worksheet.columns.forEach(column => {
-      const maxLength = column.values.reduce((max, value) => {
-        if (value) {
-          const length = value.toString().length;
-          return length > max ? length : max;
+      let maxLength = 0;
+      column.eachCell({ includeEmpty: true }, (cell) => {
+        const columnLength = cell.value ? cell.value.toString().length : 0;
+        if (columnLength > maxLength) {
+          maxLength = columnLength;
         }
-        return max;
-      }, 0);
-      column.width = Math.max(10, Math.min(maxLength + 2, 30));
+      });
+      column.width = Math.min(Math.max(maxLength + 2, 10), 30);
     });
+    
+    // Add footer note
+    worksheet.mergeCells(`A${worksheet.rowCount + 2}:E${worksheet.rowCount + 2}`);
+    const footerCell = worksheet.getCell(`A${worksheet.rowCount}`);
+    footerCell.value = 'Mary Grace Cakes and More - Confidential';
+    footerCell.font = { italic: true, size: 9 };
+    footerCell.alignment = { horizontal: 'center' };
     
     // Save the Excel file
     const buffer = await workbook.xlsx.writeBuffer();
-    saveAs(new Blob([buffer]), `MySalesReport_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+    saveAs(new Blob([buffer]), `Mary Grace Cakes and More - Staff Sales Report.xlsx`);
     showSnackbar('Excel report generated successfully!', 'success');
   } catch (error) {
     console.error('Error generating Excel:', error);
@@ -768,7 +803,7 @@ const completeCurrentOrder = async () => {
     // Add activity log
     await addDoc(collection(db, 'activityLogs'), {
       type: 'order_completed',
-      description: `Order #${currentOrder.orderId.slice(0, 8)} completed`,
+      description: `Order #${currentOrder.orderId.slice(0, 4)} completed`,
       userId: user.uid,
       userEmail: user.email,
       userName: user.displayName || user.email,
@@ -3371,7 +3406,7 @@ const validateShiftStatus = (shift) => {
                 <ListItemText 
                   primary={
                     <Typography fontWeight="medium" color="#6f4e37">
-                     Order #{order.id.slice(0, 6)} - ₱{order.total?.toFixed(2)}
+                     Order #{order.id.slice(0, 4)} - K{order.total?.toFixed(2)}
                     </Typography>
                   } 
                   secondary={
@@ -3527,7 +3562,7 @@ const validateShiftStatus = (shift) => {
                 border: '1px dashed #d4a762'
               }}>
                 <Typography variant="h4" color="#6f4e37" fontWeight="bold">
-                  ₱{performance.todaySales.toFixed(2)}
+                  K{performance.todaySales.toFixed(2)}
                 </Typography>
                 <Typography variant="body2" color="#9c8c72">
                   Sales Generated
@@ -4229,13 +4264,13 @@ const validateShiftStatus = (shift) => {
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Box>
             <Typography>
-              Order #{currentOrder.orderId?.slice(0, 8)}
+              Order #{currentOrder.orderId?.slice(0, 4)}
             </Typography>
             <Typography>
               Customer: {currentOrder.customerName || 'Walk-in'}
             </Typography>
             <Typography>
-              Total: ₱{currentOrder.total?.toFixed(2) || '0.00'}
+              Total: K{currentOrder.total?.toFixed(2) || '0.00'}
             </Typography>
             <Typography>
               Items: {currentOrder.items?.length || 0}
@@ -4338,9 +4373,9 @@ const validateShiftStatus = (shift) => {
                     }}
                   />
                 </TableCell>
-                <TableCell>{order.orderId?.slice(0, 8)}</TableCell>
+                <TableCell>{order.orderId?.slice(0, 4)}</TableCell>
                 <TableCell>{order.customerName || 'Walk-in'}</TableCell>
-                <TableCell align="right">₱{order.total?.toFixed(2) || '0.00'}</TableCell>
+                <TableCell align="right">K{order.total?.toFixed(2) || '0.00'}</TableCell>
                 <TableCell align="right">
                   {Math.floor((new Date() - (order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt))) / (1000 * 60))} min
                 </TableCell>
@@ -5112,37 +5147,100 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
 
   const exportSalesReport = () => {
   try {
-    // Prepare CSV content with improved formatting
-    let csvContent = [
-      '"Sales Report",,,,',  // Title row
-      `"Generated on: ${format(new Date(), 'yyyy-MM-dd HH:mm')}",,,,`,  // Date row
-      ',,,,',  // Empty row for spacing
-      '"Order ID","Customer","Amount","Time","Staff"',  // Header row
-    ].join('\n');
+    // Create a new workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Sales Report');
+
+    // Add title and metadata
+    worksheet.mergeCells('A1:E1');
+    const titleCell = worksheet.getCell('A1');
+    titleCell.value = 'MARY GRACE CAKES AND MORE - SALES REPORT';
+    titleCell.font = {
+      size: 16,
+      bold: true,
+      color: { argb: '963250' } // Mary Grace brand color
+    };
+    titleCell.alignment = { horizontal: 'center' };
+
+    worksheet.mergeCells('A2:E2');
+    const dateCell = worksheet.getCell('A2');
+    dateCell.value = `Generated on: ${format(new Date(), 'yyyy-MM-dd HH:mm')}`;
+    dateCell.font = { italic: true };
+    dateCell.alignment = { horizontal: 'center' };
+
+    // Add summary information
+    const totalAmount = salesData.reduce((sum, order) => sum + (order.total || 0), 0);
+    const totalOrders = salesData.length;
     
-    // Add data rows
-    salesData.forEach(order => {
-      csvContent += `\n"${order.id.slice(0, 8)}","${order.customerName}","$${order.total?.toFixed(2)}","${
-        order.createdAt?.toDate ? format(order.createdAt.toDate(), 'HH:mm') : 'N/A'
-      }","${order.createdByName}"`;
+    worksheet.getCell('A4').value = 'Summary:';
+    worksheet.getCell('A4').font = { bold: true };
+    worksheet.getCell('A5').value = `Total Orders: ${totalOrders}`;
+    worksheet.getCell('A6').value = `Total Sales: K ${totalAmount.toFixed(2)}`; // Changed to K
+
+    // Add headers with styling
+    const headers = ['Order ID', 'Customer', 'Amount (K)', 'Time', 'Staff']; // Added (K) to Amount header
+    worksheet.addRow(headers);
+    
+    // Style header row
+    const headerRow = worksheet.getRow(8);
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: 'FFFFFF' } };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: '963250' } // Mary Grace brand color
+      };
+      cell.alignment = { horizontal: 'center' };
     });
 
-    // Add summary row
-    const totalAmount = salesData.reduce((sum, order) => sum + (order.total || 0), 0);
-    csvContent += `\n\n"Total",,,,"$${totalAmount.toFixed(2)}"`;
+    // Add data rows
+    salesData.forEach(order => {
+      const row = worksheet.addRow([
+        `#${order.id.slice(0, 4)}`, // Only first 4 characters with # prefix
+        order.customerName || 'Walk-in',
+        order.total || 0,
+        order.createdAt?.toDate ? format(order.createdAt.toDate(), 'HH:mm') : format(new Date(order.createdAt), 'HH:mm') || 'N/A',
+        order.createdByName || 'System'
+      ]);
+      
+      // Format amount column as PNG currency (K)
+      row.getCell(3).numFmt = '"K"#,##0.00'; // Changed to K format
+    });
 
-    // Create download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `sales-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Auto-fit columns with some padding
+    worksheet.columns.forEach(column => {
+      let maxLength = 0;
+      column.eachCell({ includeEmpty: true }, (cell) => {
+        const columnLength = cell.value ? cell.value.toString().length : 0;
+        if (columnLength > maxLength) {
+          maxLength = columnLength;
+        }
+      });
+      column.width = Math.min(Math.max(maxLength + 2, 10), 30);
+    });
 
-    showSnackbar('Report exported successfully!', 'success');
+    // Add footer
+    const footerRow = worksheet.getRow(worksheet.rowCount + 2);
+    worksheet.mergeCells(`A${footerRow.number}:E${footerRow.number}`);
+    const footerCell = footerRow.getCell(1);
+    footerCell.value = 'Mary Grace Cakes and More - Confidential';
+    footerCell.font = { italic: true, size: 9 };
+    footerCell.alignment = { horizontal: 'center' };
+
+    // Generate and download the Excel file
+    workbook.xlsx.writeBuffer().then(buffer => {
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Mary-Grace-Sales-Report-${format(new Date(), 'yyyy-MM-dd')}.xlsx`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    showSnackbar('Excel report exported successfully!', 'success');
   } catch (error) {
     console.error('Error exporting report:', error);
     showSnackbar('Failed to export report', 'error');
@@ -5267,7 +5365,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                 fontFamily: "'Playfair Display', serif",
                 fontWeight: 700
               }}>
-                ₱{salesData.reduce((sum, order) => sum + (order.total || 0), 0).toFixed(2)}
+                K{salesData.reduce((sum, order) => sum + (order.total || 0), 0).toFixed(2)}
               </Typography>
             }
             sx={{ pb: 0 }}
@@ -5467,7 +5565,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                 color: '#3e2723',
                 fontFamily: "'Playfair Display', serif"
               }}>
-                ₱{dailySales.today.toFixed(2)}
+                K{dailySales.today.toFixed(2)}
               </Typography>
               <Chip 
                 label={`${dailySales.transactions} orders`} 
@@ -5925,7 +6023,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                     {item.quantity}
                   </TableCell>
                   <TableCell align="right" sx={{ color: '#3e2723' }}>
-                    ₱{item.total.toFixed(2)}
+                    K{item.total.toFixed(2)}
                   </TableCell>
                   <TableCell align="right">
                     <LinearProgress 
@@ -7260,7 +7358,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                       {staffSales.length}
                     </TableCell>
                     <TableCell align="right" sx={{ color: '#3e2723' }}>
-                      ₱{staffSales.reduce((sum, order) => sum + (order.total || 0), 0).toFixed(2)}
+                      K{staffSales.reduce((sum, order) => sum + (order.total || 0), 0).toFixed(2)}
                     </TableCell>
                     <TableCell align="right">
                       <Box display="flex" alignItems="center">
@@ -7896,13 +7994,13 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Box>
             <Typography>
-              Order #{currentOrder.orderId?.slice(0, 8)}
+              Order #{currentOrder.orderId?.slice(0, 4)}
             </Typography>
             <Typography>
               Customer: {currentOrder.customerName || 'Walk-in'}
             </Typography>
             <Typography>
-              Total: ₱{currentOrder.total?.toFixed(2) || '0.00'}
+              Total: K{currentOrder.total?.toFixed(2) || '0.00'}
             </Typography>
             <Typography>
               Items: {currentOrder.items?.length || 0}
@@ -8005,9 +8103,9 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                     }}
                   />
                 </TableCell>
-                <TableCell>{order.orderId?.slice(0, 8)}</TableCell>
+                <TableCell>{order.orderId?.slice(0, 4)}</TableCell>
                 <TableCell>{order.customerName || 'Walk-in'}</TableCell>
-                <TableCell align="right">₱{order.total?.toFixed(2) || '0.00'}</TableCell>
+                <TableCell align="right">K{order.total?.toFixed(2) || '0.00'}</TableCell>
                 <TableCell align="right">
                   {Math.floor((new Date() - (order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt))) / (1000 * 60))} min
                 </TableCell>
@@ -8623,13 +8721,13 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
               </Typography>
               <List>
                 <ListItem>
-                  <ListItemText primary="Total Sales" secondary={`₱${salesData.reduce((sum, order) => sum + (order.total || 0), 0).toFixed(2)}`} />
+                  <ListItemText primary="Total Sales" secondary={`K${salesData.reduce((sum, order) => sum + (order.total || 0), 0).toFixed(2)}`} />
                 </ListItem>
                 <ListItem>
                   <ListItemText primary="Number of Orders" secondary={salesData.length} />
                 </ListItem>
                 <ListItem>
-                  <ListItemText primary="Average Order Value" secondary={`₱${(salesData.reduce((sum, order) => sum + (order.total || 0), 0) / (salesData.length || 1)).toFixed(2)}`} />
+                  <ListItemText primary="Average Order Value" secondary={`K${(salesData.reduce((sum, order) => sum + (order.total || 0), 0) / (salesData.length || 1)).toFixed(2)}`} />
                 </ListItem>
               </List>
             </Grid>
@@ -8640,7 +8738,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
               <List>
                 {getTopSellingItems(salesData).map((item, index) => (
                   <ListItem key={index}>
-                    <ListItemText primary={`${index + 1}. ${item.name}`} secondary={`${item.quantity} sold - ₱${item.total.toFixed(2)}`} />
+                    <ListItemText primary={`${index + 1}. ${item.name}`} secondary={`${item.quantity} sold - K${item.total.toFixed(2)}`} />
                   </ListItem>
                 ))}
               </List>
@@ -8663,9 +8761,9 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                   <TableBody>
                     {salesData.slice(0, 5).map(order => (
                       <TableRow key={order.id}>
-                        <TableCell>{order.id.slice(0, 8)}</TableCell>
+                        <TableCell>{order.id.slice(0, 4)}</TableCell>
                         <TableCell>{order.customerName}</TableCell>
-                        <TableCell align="right">₱{order.total?.toFixed(2)}</TableCell>
+                        <TableCell align="right">K{order.total?.toFixed(2)}</TableCell>
                         <TableCell>{order.createdAt?.toDate ? format(order.createdAt.toDate(), 'HH:mm') : 'N/A'}</TableCell>
                         <TableCell>{order.createdByName}</TableCell>
                       </TableRow>

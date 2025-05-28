@@ -336,7 +336,7 @@ const Orders = () => {
       <OrderList 
         orders={filteredOrders} 
         onOrderClick={setSelectedOrder}
-        currencySymbol="₱"
+        currencySymbol="K"
       />
       
       {selectedOrder && (
@@ -344,7 +344,7 @@ const Orders = () => {
           order={selectedOrder} 
           onClose={() => setSelectedOrder(null)}
           onUpdate={() => {}} // No need to manually refresh anymore
-          currencySymbol="₱"
+          currencySymbol="K"
         />
       )}
     </Box>
