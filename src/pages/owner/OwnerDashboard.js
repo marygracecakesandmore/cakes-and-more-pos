@@ -722,7 +722,7 @@ const generateInventoryReport = () => {
             alignItems: 'center'
           }}>
             <LocalCafe sx={{ mr: 2, fontSize: 'inherit' }} />
-            Brew Haven Insights
+            Mary Grace Cakes & More Insights
           </Typography>
           <Typography variant="subtitle1" sx={{ color: '#8d6e63', mt: 1 }}>
             {format(new Date(), 'EEEE, MMMM d, yyyy')}

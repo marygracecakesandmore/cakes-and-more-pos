@@ -5310,7 +5310,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
         alignItems: 'center'
       }}>
         <LocalCafe sx={{ mr: 2, color: '#8d6e63' }} />
-        BrewMaster Dashboard
+        Mary Grace Cakes & More Dashboard
       </Typography>
       <Chip 
         label={`${new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}`}
