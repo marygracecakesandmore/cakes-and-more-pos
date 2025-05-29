@@ -52,7 +52,7 @@ const OrderList = ({ orders, onOrderClick }) => {
               onClick={() => onOrderClick(order)}
               sx={{ cursor: 'pointer' }}
             >
-              <TableCell>#{order.id.slice(0, 4)}</TableCell>
+              <TableCell>#{order.orderNumber}</TableCell>
               <TableCell>{order.customerName}</TableCell>
               <TableCell>
                 {order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM dd, yyyy HH:mm') : 'N/A'}

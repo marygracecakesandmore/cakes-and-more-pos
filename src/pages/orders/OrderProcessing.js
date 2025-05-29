@@ -92,8 +92,7 @@ React.useEffect(() => {
   }
 };
 
-  // In OrderProcessing.js, update the handlePayment function:
-const handlePayment = async () => {
+  const handlePayment = async () => {
   const amount = parseFloat(paymentAmount);
   if (isNaN(amount) || amount < order.total) {
     alert(`Payment amount must be at least K${order.total.toFixed(2)}`);
@@ -101,6 +100,13 @@ const handlePayment = async () => {
   }
 
   try {
+    // First get the current order data to access the orderNumber
+    const orderDoc = await getDoc(doc(db, 'orders', order.id));
+    if (!orderDoc.exists()) {
+      throw new Error('Order document not found');
+    }
+    const orderData = orderDoc.data();
+    
     // Update order with payment details and mark as paid
     await updateDoc(doc(db, 'orders', order.id), {
       payment: {
@@ -114,9 +120,10 @@ const handlePayment = async () => {
       updatedAt: serverTimestamp()
     });
 
-    // Add to queue collection
+    // Add to queue collection - INCLUDING ORDER NUMBER
     await addDoc(collection(db, 'queue'), {
       orderId: order.id,
+      orderNumber: orderData.orderNumber, // Add this line
       status: 'waiting',
       createdAt: serverTimestamp(),
       customerName: order.customerName || 'Walk-in',
@@ -131,12 +138,14 @@ const handlePayment = async () => {
     // Add activity log
     await addDoc(collection(db, 'activityLogs'), {
       type: 'payment',
-      description: `Payment processed for Order #${order.id.slice(0, 4)}`,
+      description: `Payment processed for Order #${orderData.orderNumber}`, // Use orderNumber here too
       userId: user.uid,
       userEmail: user.email,
       userName: userData?.firstName || user.email.split('@')[0],
       amount: amount,
       orderId: order.id,
+      orderNumber: orderData.orderNumber,
+      
       timestamp: serverTimestamp()
     });
 
@@ -160,7 +169,7 @@ const printReceipt = () => {
   printWindow.document.write(`
     <html>
       <head>
-        <title>Receipt for Order #${order.id.slice(0, 4)}</title>
+        <title>Receipt for Order #${order.orderNumber}</title>
         <style>
           @page {
             size: 58mm auto;
@@ -233,8 +242,8 @@ const printReceipt = () => {
         
         <table>
           <tr>
-            <td>Order #:</td>
-            <td class="text-right">${order.id.slice(0, 4)}</td>
+            <td>Invoice No:</td>
+            <td class="text-right">${order.orderNumber}</td>
           </tr>
           <tr>
             <td>Date:</td>
@@ -272,37 +281,21 @@ const printReceipt = () => {
           ` : ''}
           
           <tr>
-            <td class="text-bold">Subtotal:</td>
-            <td class="text-right text-bold">K${order.total?.toFixed(2) || '0.00'}</td>
-          </tr>
-          
-          ${order.pointsEarned > 0 ? `
-            <tr>
-              <td>Points Earned:</td>
-              <td class="text-right">+${order.pointsEarned} pts</td>
-            </tr>
-          ` : ''}
-          
-          ${order.pointsDeducted > 0 ? `
-            <tr>
-              <td>Points Redeemed:</td>
-              <td class="text-right">-${order.pointsDeducted} pts</td>
-            </tr>
-          ` : ''}
+  <td class="text-bold">Total:</td>
+  <td class="text-right text-bold">K${order.total?.toFixed(2) || '0.00'}</td>
+</tr>
+<tr>
+  <td>Includes 10% GST:</td>
+  <td class="text-right">K${order.gstAmount?.toFixed(2) || '0.00'}</td>
+</tr>
           
           ${order.payment ? `
             <tr>
-              <td>Tax:</td>
-              <td class="text-right">K0.00</td>
-            </tr>
-            <tr>
-              <td class="text-bold">Total:</td>
-              <td class="text-right text-bold">K${order.total?.toFixed(2) || '0.00'}</td>
-            </tr>
-            <tr>
               <td>Payment Method:</td>
               <td class="text-right">
-                ${order.payment.method.charAt(0).toUpperCase() + order.payment.method.slice(1)}
+                ${order.payment.method === 'cash' ? 'Cash' : 
+                  order.payment.method === 'card' ? 'Debit/Visa Card' : 
+                  'Transfer/SMS'}
               </td>
             </tr>
             <tr>
@@ -341,7 +334,6 @@ const printReceipt = () => {
     </html>
   `);
   
-  printWindow.document.write('</body></html>');
   printWindow.document.close();
   
   // Wait for content to load before printing
@@ -361,18 +353,18 @@ const printReceipt = () => {
   return (
     <Dialog open={true} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        <Box display="flex" alignItems="center">
-          <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
-            <ReceiptIcon />
-          </Avatar>
-          <Typography variant="h6">Order #{order.id.slice(0, 4)}</Typography>
-          <Chip 
-            label={order.status} 
-            color={order.status === 'pending' ? 'warning' : 'success'}
-            sx={{ ml: 2 }}
-          />
-        </Box>
-      </DialogTitle>
+  <Box display="flex" alignItems="center">
+    <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+      <ReceiptIcon />
+    </Avatar>
+    <Typography variant="h6">Order #{order.orderNumber}</Typography>
+    <Chip 
+      label={order.status} 
+      color={order.status === 'pending' ? 'warning' : 'success'}
+      sx={{ ml: 2 }}
+    />
+  </Box>
+</DialogTitle>
       
       <DialogContent dividers>
         <Grid container spacing={3}>
@@ -440,14 +432,7 @@ const printReceipt = () => {
     </TableRow>
   )}
   
-  <TableRow>
-    <TableCell colSpan={3} align="right">
-      <strong>Subtotal:</strong>
-    </TableCell>
-    <TableCell align="right">
-      <strong>K{order.total?.toFixed(2) || '0.00'}</strong>
-    </TableCell>
-  </TableRow>
+  
   
   {/* Show points earned/deducted if available */}
   {(order.pointsEarned > 0 || order.pointsDeducted > 0) && (
@@ -475,44 +460,47 @@ const printReceipt = () => {
     </>
   )}
                   {order.payment && (
-                    <>
-                      <TableRow>
-                        <TableCell colSpan={3} align="right">Tax:</TableCell>
-                        <TableCell align="right">K0.00</TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={3} align="right">
-                          <strong>Total:</strong>
-                        </TableCell>
-                        <TableCell align="right">
-                          <strong>K{order.total?.toFixed(2) || '0.00'}</strong>
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={3} align="right">Payment Method:</TableCell>
-                        <TableCell align="right">
-                          K{order.payment?.method
-  ? order.payment.method.charAt(0).toUpperCase() + order.payment.method.slice(1)
-  : 'N/A'}
-
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={3} align="right">Amount Tendered:</TableCell>
-                        <TableCell align="right">
-                          K{order.payment.amount?.toFixed(2) || '0.00'}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={3} align="right">
-                          <strong>Change Due:</strong>
-                        </TableCell>
-                        <TableCell align="right">
-                          <strong>K{changeDue}</strong>
-                        </TableCell>
-                      </TableRow>
-                    </>
-                  )}
+  <>
+    <TableRow>
+  <TableCell colSpan={3} align="right">
+    <strong>Total:</strong>
+  </TableCell>
+  <TableCell align="right">
+    <strong>K{order.total?.toFixed(2) || '0.00'}</strong>
+  </TableCell>
+</TableRow>
+<TableRow>
+  <TableCell colSpan={3} align="right">
+    <Typography>Includes 10% GST:</Typography>
+  </TableCell>
+  <TableCell align="right">
+    <Typography>K{order.gstAmount?.toFixed(2) || '0.00'}</Typography>
+  </TableCell>
+</TableRow>
+    <TableRow>
+      <TableCell colSpan={3} align="right">Payment Method:</TableCell>
+      <TableCell align="right">
+        {order.payment.method === 'cash' ? 'Cash' : 
+         order.payment.method === 'card' ? 'Debit/Visa Card' : 
+         'Transfer/SMS'}
+      </TableCell>
+    </TableRow>
+    <TableRow>
+      <TableCell colSpan={3} align="right">Amount Tendered:</TableCell>
+      <TableCell align="right">
+        K{order.payment.amount?.toFixed(2) || '0.00'}
+      </TableCell>
+    </TableRow>
+    <TableRow>
+      <TableCell colSpan={3} align="right">
+        <strong>Change Due:</strong>
+      </TableCell>
+      <TableCell align="right">
+        <strong>K{changeDue}</strong>
+      </TableCell>
+    </TableRow>
+  </>
+)}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -521,61 +509,75 @@ const printReceipt = () => {
           <Grid item xs={12} md={6}>
             {order.status === 'pending' ? (
   <Paper elevation={0} sx={{ p: 2, mb: 2 }}>
-    <Typography variant="subtitle1" gutterBottom>
-      Process Payment
-    </Typography>
-    
-    {/* Add rewards summary before payment */}
-    {order.discountApplied > 0 && (
-      <Box sx={{ 
-        backgroundColor: '#e8f5e9', 
-        p: 2, 
-        mb: 2, 
-        borderRadius: 1 
-      }}>
+  <Typography variant="subtitle1" gutterBottom>
+    Process Payment
+  </Typography>
+  
+  {/* Add rewards summary before payment */}
+  {order.discountApplied > 0 && (
+    <Box sx={{ 
+      backgroundColor: '#e8f5e9', 
+      p: 2, 
+      mb: 2, 
+      borderRadius: 1 
+    }}>
+      <Typography variant="body2">
+        <strong>Applied Reward:</strong> {order.rewardUsed}
+      </Typography>
+      <Typography variant="body2">
+        <strong>Discount Amount:</strong> -K{order.discountApplied.toFixed(2)}
+      </Typography>
+      {order.pointsDeducted > 0 && (
         <Typography variant="body2">
-          <strong>Applied Reward:</strong> {order.rewardUsed}
+          <strong>Points Deducted:</strong> {order.pointsDeducted} pts
         </Typography>
-        <Typography variant="body2">
-          <strong>Discount Amount:</strong> -K{order.discountApplied.toFixed(2)}
-        </Typography>
-        {order.pointsDeducted > 0 && (
-          <Typography variant="body2">
-            <strong>Points Deducted:</strong> {order.pointsDeducted} pts
-          </Typography>
-        )}
-      </Box>
-    )}
-    
-    <TextField
-      fullWidth
-      label="Amount"
-      type="number"
-      value={paymentAmount}
-      onChange={(e) => setPaymentAmount(e.target.value)}
-      error={paymentAmount && parseFloat(paymentAmount) < (order.total - (order.discountApplied || 0))}
-      helperText={
-        paymentAmount && parseFloat(paymentAmount) < (order.total - (order.discountApplied || 0)) ? 
-        `Amount must be at least K${(order.total - (order.discountApplied || 0)).toFixed(2)}` : ''
-      }
-      sx={{ mb: 2 }}
-      InputProps={{
-        startAdornment: <InputAdornment position="start">K</InputAdornment>,
-      }}
-    
-/>
+      )}
+    </Box>
+  )}
+
+  {/* Add GST information */}
+  <Box sx={{ 
+  backgroundColor: '#f5f5f5', 
+  p: 2, 
+  mb: 2, 
+  borderRadius: 1 
+}}>
+  <Typography variant="body2">
+    <strong>Total Amount:</strong> K{order.total?.toFixed(2) || '0.00'}
+  </Typography>
+  <Typography variant="body2">
+    <strong>Includes 10% GST:</strong> K{order.gstAmount?.toFixed(2) || '0.00'}
+  </Typography>
+</Box>
+
+  <TextField
+    fullWidth
+    label="Amount Tendered"
+    type="number"
+    value={paymentAmount}
+    onChange={(e) => setPaymentAmount(e.target.value)}
+    error={paymentAmount && parseFloat(paymentAmount) < (order.total - (order.discountApplied || 0))}
+    helperText={
+      paymentAmount && parseFloat(paymentAmount) < (order.total - (order.discountApplied || 0)) ? 
+      `Amount must be at least K${(order.total - (order.discountApplied || 0)).toFixed(2)}` : ''
+    }
+    sx={{ mb: 2 }}
+    InputProps={{
+      startAdornment: <InputAdornment position="start">K</InputAdornment>,
+    }}
+  />
                 <TextField
-                  fullWidth
-                  select
-                  label="Payment Method"
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  sx={{ mb: 2 }}
-                >
-                  <MenuItem value="cash">Cash</MenuItem>
-                  <MenuItem value="card">Credit Card</MenuItem>
-                  <MenuItem value="mobile">Mobile Payment</MenuItem>
-                </TextField>
+  fullWidth
+  select
+  label="Payment Method"
+  value={paymentMethod}
+  onChange={(e) => setPaymentMethod(e.target.value)}
+  sx={{ mb: 2 }}
+>
+  <MenuItem value="cash">Cash</MenuItem>
+  <MenuItem value="card">Debit/Visa Card</MenuItem>
+  <MenuItem value="mobile">Transfer/SMS</MenuItem>
+</TextField>
                 <Button
                   fullWidth
                   variant="contained"

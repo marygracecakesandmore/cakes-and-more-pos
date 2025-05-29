@@ -13,7 +13,7 @@ import {
 } from '@mui/icons-material';
 import { format, subDays, isToday, isYesterday, parseISO } from 'date-fns';
 import { db } from '../firebase';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 
 const ActivityLogs = () => {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ const ActivityLogs = () => {
     end: format(new Date(), 'yyyy-MM-dd')
   });
 
-  // Fetch activity logs with filters
+  // Enhanced fetch with order number lookup
   const fetchActivityLogs = async () => {
     try {
       setLoading(true);
@@ -53,10 +53,28 @@ const ActivityLogs = () => {
       }
       
       const querySnapshot = await getDocs(q);
-      const logs = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate()
+      const logs = await Promise.all(querySnapshot.docs.map(async doc => {
+        const logData = doc.data();
+        let orderNumber = logData.orderNumber;
+        
+        // If log has orderId but no orderNumber, fetch it
+        if (!orderNumber && logData.orderId) {
+          try {
+            const orderDoc = await getDoc(doc(db, 'orders', logData.orderId));
+            if (orderDoc.exists()) {
+              orderNumber = orderDoc.data().orderNumber;
+            }
+          } catch (error) {
+            console.error('Error fetching order number:', error);
+          }
+        }
+        
+        return {
+          id: doc.id,
+          ...logData,
+          orderNumber: orderNumber || null,
+          timestamp: logData.timestamp?.toDate()
+        };
       }));
       
       setActivityLogs(logs);
@@ -116,7 +134,8 @@ const ActivityLogs = () => {
   const filteredLogs = activityLogs.filter(log => 
     log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     log.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (log.orderId && log.orderId.toLowerCase().includes(searchTerm.toLowerCase()))
+    (log.orderId && log.orderId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (log.orderNumber && log.orderNumber.toString().includes(searchTerm))
   );
 
   return (
@@ -236,14 +255,18 @@ const ActivityLogs = () => {
                           <Typography variant="body2" fontWeight="medium">
                             {log.description}
                           </Typography>
-                          {log.orderId && (
+                          {log.orderNumber ? (
+                            <Typography variant="caption" color="text.secondary">
+                              Order #{log.orderNumber}
+                            </Typography>
+                          ) : log.orderId ? (
                             <Typography variant="caption" color="text.secondary">
                               Order #{log.orderId.slice(0, 4)}
                             </Typography>
-                          )}
+                          ) : null}
                           {log.amount && (
                             <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                              K{log.amount}
+                              K{log.amount.toFixed(2)}
                             </Typography>
                           )}
                         </TableCell>

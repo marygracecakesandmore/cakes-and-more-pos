@@ -516,11 +516,12 @@ const calculateQueueEfficiency = (queueItems) => {
   currentY += 7;
   
   const ordersData = recentOrders.map(order => [
-    `#${order.id.slice(0, 4)}`,
-    order.customerName || 'Walk-in',
-    order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A',
-    `K ${order.total?.toFixed(2) || '0.00'}`
-  ]);
+  `#${order.orderNumber}`,
+  order.customerName || 'Walk-in',
+  order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM d, h:mm a') : 'N/A',
+  `K ${order.total?.toFixed(2) || '0.00'}`
+]);
+
   
   autoTable(doc, {
     startY: currentY,
@@ -1162,8 +1163,9 @@ const generateInventoryReport = () => {
                   }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="subtitle1" sx={{ color: '#5d4037' }}>
-                        Order #{order.id.slice(0, 4)}
-                      </Typography>
+  Order #{order.orderNumber}
+</Typography>
+
                       <Typography variant="subtitle1" sx={{ color: '#5d4037' }}>
                         K{(order.total || 0).toFixed(2)}
                       </Typography>

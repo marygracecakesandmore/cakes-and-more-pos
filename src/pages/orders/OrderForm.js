@@ -223,6 +223,8 @@ const handleRegisterCustomer = async () => {
   }
 };
 
+
+
 const showSnackbar = (message, severity = 'success') => {
   setSnackbar({ open: true, message, severity });
 };
@@ -331,68 +333,137 @@ const showSnackbar = (message, severity = 'success') => {
     setShowLastOrders(false);
   };
 
-    const handleAddItem = () => {
-      if (!selectedProduct || quantity <= 0) return;
+    const handleAddItem = async () => {
+  if (!selectedProduct || quantity <= 0) return;
 
-      const product = products.find(p => p.id === selectedProduct);
-      if (!product) return;
+  // Get fresh stock data from Firestore
+  const productRef = doc(db, 'products', selectedProduct);
+  const productSnap = await getDoc(productRef);
+  
+  if (!productSnap.exists()) {
+    showSnackbar(`Product not found`, 'error');
+    return;
+  }
 
-      const existingItemIndex = items.findIndex(item => item.productId === selectedProduct);
-      
-      if (existingItemIndex >= 0) {
-        const updatedItems = [...items];
-        updatedItems[existingItemIndex].quantity += quantity;
-        setItems(updatedItems);
-      } else {
-        setItems([...items, {
-          productId: selectedProduct,
-          name: product.name,
-          price: product.price,
-          quantity: quantity
-        }]);
-      }
+  const productData = productSnap.data();
+  const currentStock = productData.stock;
 
-      setSelectedProduct('');
-      setQuantity(1);
-    };
+  // Check if product has stock available
+  if (currentStock !== undefined && currentStock <= 0) {
+    showSnackbar(`Cannot order ${productData.name} - out of stock`, 'error');
+    return;
+  }
+
+  // Check if trying to order more than available stock
+  if (currentStock !== undefined && quantity > currentStock) {
+    showSnackbar(`Only ${currentStock} ${productData.name} available in stock`, 'error');
+    return;
+  }
+
+  const existingItemIndex = items.findIndex(item => item.productId === selectedProduct);
+  
+  if (existingItemIndex >= 0) {
+    // Check if adding this quantity would exceed stock
+    const newQuantity = items[existingItemIndex].quantity + quantity;
+    if (currentStock !== undefined && newQuantity > currentStock) {
+      showSnackbar(`Cannot add ${quantity} more - only ${currentStock - items[existingItemIndex].quantity} ${productData.name} available`, 'error');
+      return;
+    }
+    
+    const updatedItems = [...items];
+    updatedItems[existingItemIndex].quantity += quantity;
+    setItems(updatedItems);
+  } else {
+    setItems([...items, {
+      productId: selectedProduct,
+      name: productData.name,
+      price: productData.price,
+      quantity: quantity
+    }]);
+  }
+
+  setSelectedProduct('');
+  setQuantity(1);
+};
 
     const handleRemoveItem = (productId) => {
       setItems(items.filter(item => item.productId !== productId));
     };
 
-    const handleUpdateQuantity = (productId, newQuantity) => {
-      if (newQuantity <= 0) {
-        handleRemoveItem(productId);
-        return;
-      }
+    const handleUpdateQuantity = async (productId, newQuantity) => {
+  if (newQuantity <= 0) {
+    handleRemoveItem(productId);
+    return;
+  }
 
-      setItems(items.map(item => 
-        item.productId === productId ? { ...item, quantity: newQuantity } : item
-      ));
-    };
-
-    const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    const orderTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const orderData = {
-      customerName,
-      notes,
-      items,
-      total: orderTotal
-    };
-    
-    // Check if order needs confirmation (high value or many items)
-    const needsConfirmation = orderTotal > 1000 || items.length > 5;
-    
-    if (needsConfirmation) {
-      setPendingOrder(orderData);
-      setShowConfirmationDialog(true);
+  // Get fresh stock data from Firestore
+  const productRef = doc(db, 'products', productId);
+  const productSnap = await getDoc(productRef);
+  
+  if (productSnap.exists()) {
+    const productData = productSnap.data();
+    if (productData.stock !== undefined && newQuantity > productData.stock) {
+      showSnackbar(`Cannot set quantity to ${newQuantity} - only ${productData.stock} available`, 'error');
       return;
     }
-    
-    submitOrder(orderData);
+  }
+
+  setItems(items.map(item => 
+    item.productId === productId ? { ...item, quantity: newQuantity } : item
+  ));
+};
+
+    const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+
+
+  const orderTotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const orderData = {
+    customerName,
+    notes,
+    items,
+    total: orderTotal
   };
+  
+  // Check if order needs confirmation (high value or many items)
+  const needsConfirmation = orderTotal > 1000 || items.length > 5;
+  
+  if (needsConfirmation) {
+    setPendingOrder(orderData);
+    setShowConfirmationDialog(true);
+    return;
+  }
+  
+  submitOrder(orderData);
+};
+
+// Add this helper function to check stock availability
+const checkStockAvailability = async (itemsToCheck) => {
+  const stockValidationErrors = [];
+  
+  for (const item of itemsToCheck) {
+    if (!item.isReward) { // Skip reward items
+      const productRef = doc(db, 'products', item.productId);
+      const productSnap = await getDoc(productRef);
+      
+      if (productSnap.exists()) {
+        const productData = productSnap.data();
+        if (productData.stock !== undefined && productData.stock < item.quantity) {
+          stockValidationErrors.push({
+            productName: item.name,
+            available: productData.stock,
+            requested: item.quantity
+          });
+        }
+      }
+    }
+  }
+  
+  return stockValidationErrors;
+};
+
+
 
   // Update the submitOrder function
 const submitOrder = async (orderData) => {
@@ -403,17 +474,43 @@ const submitOrder = async (orderData) => {
       return;
     }
 
+    // Check stock availability for all items
+    const stockErrors = await checkStockAvailability(items);
+    if (stockErrors.length > 0) {
+      const errorMessage = stockErrors.map(e => 
+        `Only ${e.available} ${e.productName} available (requested ${e.requested})`
+      ).join('\n');
+      showSnackbar(`Stock issues detected:\n${errorMessage}`, 'error');
+      return;
+    }
+
     // Create a Firestore batch to handle multiple writes
     const batch = writeBatch(db);
+
+    // Get the next order number from the counter
+    const counterRef = doc(db, 'counters', 'orders');
+    const counterSnap = await getDoc(counterRef);
+    let orderNumber = 1000; // Starting number
+
+    if (counterSnap.exists()) {
+      orderNumber = counterSnap.data().count + 1;
+    }
+
+    // Update the counter
+    batch.set(counterRef, { count: orderNumber }, { merge: true });
 
     let selectedCustomer = null;
     let pointsEarned = 0;
     let pointsDeducted = 0;
     
-    // Calculate paid items total (excluding rewards) once
+    // Calculate paid items total (excluding rewards)
     const paidItemsTotal = items
       .filter(item => !item.isReward)
       .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    // Calculate total with GST already included (GST inclusive)
+    const totalAmount = paidItemsTotal - discountApplied;
+    const gstAmount = totalAmount - (totalAmount / 1.1); // Calculate GST component
 
     // Only process loyalty if customer name is provided
     if (customerName) {
@@ -439,12 +536,15 @@ const submitOrder = async (orderData) => {
     // Add order to batch
     batch.set(orderRef, {
       ...orderData,
+      orderNumber, // Add the sequential order number
       customerName: customerName || 'Walk-in Customer',
       items: items.map(item => ({
         ...item,
         price: item.isReward ? 0 : item.price
       })),
-      total: orderData.total - discountApplied,
+      subtotal: paidItemsTotal,
+      gstAmount,
+      total: totalAmount,
       createdAt: serverTimestamp(),
       createdBy: user.uid,
       createdByName: userData?.firstName || user.email.split('@')[0],
@@ -461,6 +561,7 @@ const submitOrder = async (orderData) => {
         rewardUsed: selectedReward ? selectedReward.name : null
       }
     });
+
 
     // Update stock for each product in the order
     items.forEach(item => {
@@ -513,16 +614,18 @@ const submitOrder = async (orderData) => {
     }
 
     // Add activity log
-    const activityLogRef = doc(collection(db, 'activityLogs'));
-    batch.set(activityLogRef, {
-      type: 'order_created',
-      description: `New order created for ${customerName || 'Walk-in Customer'}`,
-      userId: user.uid,
-      userEmail: user.email,
-      userName: userData?.firstName || user.email.split('@')[0],
-      orderId: orderRef.id,
-      timestamp: serverTimestamp()
-    });
+const activityLogRef = doc(collection(db, 'activityLogs'));
+batch.set(activityLogRef, {
+  type: 'order_created',
+  description: `New order created for ${customerName || 'Walk-in Customer'}`,
+  userId: user.uid,
+  userEmail: user.email,
+  userName: userData?.firstName || user.email.split('@')[0],
+  orderId: orderRef.id,
+  orderNumber: orderNumber, // <-- Include this line
+  timestamp: serverTimestamp()
+});
+
 
     // Commit the batch
     await batch.commit();
@@ -537,12 +640,14 @@ const submitOrder = async (orderData) => {
     // Call success callback
     onSubmit();
     
-    showSnackbar('Order submitted successfully!', 'success');
+    showSnackbar(`Order #${orderNumber} submitted successfully!`, 'success');
   } catch (error) {
     console.error('Error submitting order:', error);
     showSnackbar('Error submitting order. Please try again.', 'error');
   }
 };
+
+
 
     const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
@@ -739,30 +844,51 @@ const submitOrder = async (orderData) => {
               border: '1px solid #eee'
             }}>
               <Autocomplete
-                options={products.filter(p => p.available !== false)}
-                getOptionLabel={(product) => `${product.name} - K${product.price.toFixed(2)}`}
-                value={products.find(p => p.id === selectedProduct) || null}
-                onChange={(event, newValue) => {
-                  setSelectedProduct(newValue?.id || '');
-                }}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Search products..."
-                    variant="outlined"
-                    size="small"
-                    fullWidth
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: '12px',
-                        backgroundColor: 'white'
-                      }
-                    }}
-                  />
-                )}
-                sx={{ flex: 1, minWidth: 200 }}
-                disabled={products.filter(p => p.available !== false).length === 0}
-              />
+  options={products.filter(p => p.available !== false)}
+  getOptionLabel={(product) => {
+    const stockText = product.stock !== undefined ? 
+      (product.stock <= 0 ? ' (Out of Stock)' : ` (Stock: ${product.stock})`) : '';
+    return `${product.name} - K${product.price.toFixed(2)}${stockText}`;
+  }}
+  value={products.find(p => p.id === selectedProduct) || null}
+  onChange={(event, newValue) => {
+    setSelectedProduct(newValue?.id || '');
+  }}
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      label="Search products..."
+      variant="outlined"
+      size="small"
+      fullWidth
+      sx={{
+        '& .MuiOutlinedInput-root': {
+          borderRadius: '12px',
+          backgroundColor: 'white'
+        }
+      }}
+    />
+  )}
+  sx={{ flex: 1, minWidth: 200 }}
+  disabled={products.filter(p => p.available !== false).length === 0}
+  renderOption={(props, product) => (
+    <li {...props} style={{
+      ...props.style,
+      opacity: product.stock !== undefined && product.stock <= 0 ? 0.5 : 1
+    }}>
+      {product.name} - K{product.price.toFixed(2)}
+      {product.stock !== undefined && (
+        <span style={{
+          color: product.stock <= 0 ? 'red' : 'green',
+          marginLeft: '8px',
+          fontSize: '0.8rem'
+        }}>
+          {product.stock <= 0 ? 'Out of Stock' : `Stock: ${product.stock}`}
+        </span>
+      )}
+    </li>
+  )}
+/>
               
               <TextField
                 type="number"
@@ -781,24 +907,28 @@ const submitOrder = async (orderData) => {
               />
               
               <Button 
-                variant="contained" 
-                onClick={handleAddItem}
-                startIcon={<AddIcon />}
-                size="medium"
-                sx={{
-                  borderRadius: '12px',
-                  textTransform: 'none',
-                  px: 3,
-                  height: '40px',
-                  boxShadow: 'none',
-                  '&:hover': {
-                    boxShadow: 'none',
-                    bgcolor: 'primary.dark'
-                  }
-                }}
-              >
-                Add Item
-              </Button>
+  variant="contained" 
+  onClick={handleAddItem}
+  startIcon={<AddIcon />}
+  size="medium"
+  sx={{
+    borderRadius: '12px',
+    textTransform: 'none',
+    px: 3,
+    height: '40px',
+    boxShadow: 'none',
+    '&:hover': {
+      boxShadow: 'none',
+      bgcolor: 'primary.dark'
+    }
+  }}
+  disabled={!selectedProduct || 
+            quantity <= 0 || 
+            (products.find(p => p.id === selectedProduct)?.stock !== undefined && 
+             products.find(p => p.id === selectedProduct)?.stock <= 0)}
+>
+  Add Item
+</Button>
             </Box>
             
             {/* Items Table */}
@@ -875,15 +1005,17 @@ const submitOrder = async (orderData) => {
                               {item.quantity}
                             </Typography>
                             <IconButton 
-                              size="small" 
-                              onClick={() => handleUpdateQuantity(item.productId, item.quantity + 1)}
-                              sx={{ 
-                                color: 'success.main',
-                                '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.08)' }
-                              }}
-                            >
-                              <AddIcon fontSize="small" />
-                            </IconButton>
+  size="small" 
+  onClick={() => handleUpdateQuantity(item.productId, item.quantity + 1)}
+  sx={{ 
+    color: 'success.main',
+    '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.08)' }
+  }}
+  disabled={!item.isReward && products.find(p => p.id === item.productId)?.stock !== undefined && 
+            item.quantity >= products.find(p => p.id === item.productId)?.stock}
+>
+  <AddIcon fontSize="small" />
+</IconButton>
                           </Box>
                         </TableCell>
                         <TableCell align="right" sx={{ fontWeight: '500' }}>
@@ -1114,7 +1246,8 @@ const submitOrder = async (orderData) => {
               onClick={() => repeatOrder(order)}
             >
               <ListItemText
-                primary={`Order #${order.id.slice(0, 4)}`}
+                primary={`Order #${order.orderNumber}`}
+
                 secondary={`${format(order.createdAt.toDate(), 'MMM dd, yyyy')} - K${order.total.toFixed(2)}`}
               />
             </ListItem>

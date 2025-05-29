@@ -315,7 +315,8 @@ const generatePDFReport = async () => {
     
     // Sales table with light blue theme
     const tableData = salesData.map(order => [
-      `#${order.id.slice(0, 4)}`,
+      `#${order.orderNumber || order.id.slice(0, 4)}`,
+
       order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM d, yyyy h:mm a') : format(new Date(order.createdAt), 'MMM d, yyyy h:mm a') || 'N/A',
       order.customerName || 'Walk-in',
       `K ${order.total?.toFixed(2) || '0.00'}`,
@@ -423,7 +424,8 @@ const generateExcelReport = async () => {
     worksheet.getCell('A9').value = `Total Sales Generated: K ${totalSales.toFixed(2)}`;
     
     // Add table headers with Mary Grace styling
-    const headers = ['Order ID', 'Date', 'Customer', 'Amount (K)', 'Status'];
+    const headers = ['Order ID', 'Order Number', 'Date', 'Customer', 'Amount (K)', 'Status'];
+
     worksheet.addRow(headers);
     
     // Style headers
@@ -440,13 +442,15 @@ const generateExcelReport = async () => {
     
     // Add data rows
     salesData.forEach((order) => {
-      const row = worksheet.addRow([
-        `#${order.id.slice(0, 4)}`, // Only first 4 characters
-        order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM d, yyyy h:mm a') : format(new Date(order.createdAt), 'MMM d, yyyy h:mm a') || 'N/A',
-        order.customerName || 'Walk-in',
-        order.total || 0,
-        order.status || 'completed' // Show actual status or default to 'completed'
-      ]);
+     const row = worksheet.addRow([
+  `#${order.id.slice(0, 4)}`,
+  order.orderNumber || 'N/A',
+  order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM d, yyyy h:mm a') : format(new Date(order.createdAt), 'MMM d, yyyy h:mm a') || 'N/A',
+  order.customerName || 'Walk-in',
+  order.total || 0,
+  order.status || 'completed'
+]);
+
       
       // Format the amount column with K currency
       const amountCell = row.getCell(4);
@@ -759,6 +763,7 @@ const processNextOrder = async () => {
     }
 
     const orderData = orderDoc.data();
+    const orderNumber = orderData.orderNumber; // Get the actual order number
     
     // Update both order and queue documents in a batch
     const batch = writeBatch(db);
@@ -782,24 +787,25 @@ const processNextOrder = async () => {
     
     await batch.commit();
     
-    // Set current order with all necessary data
+    // Set current order with all necessary data including orderNumber
     setCurrentOrder({
       ...nextOrder,
       ...orderData,
-      id: nextOrder.id
+      id: nextOrder.id,
+      orderNumber: orderNumber // Ensure orderNumber is included
     });
     
     // Update local queue state
     setQueue(prevQueue => prevQueue.filter(order => order.id !== nextOrder.id));
     
-    showSnackbar(`Now processing order ${nextOrder.orderId.slice(0, 6)}`, 'success');
+    // Show order number in snackbar instead of ID snippet
+    showSnackbar(`Now processing order #${orderNumber}`, 'success');
   } catch (error) {
     console.error('Error processing order:', error);
     showSnackbar('Failed to process order', 'error');
   }
 };
 
-// In Dashboard.js, update the completeCurrentOrder function:
 const completeCurrentOrder = async () => {
   if (!currentOrder) {
     showSnackbar('No order being processed', 'warning');
@@ -807,6 +813,14 @@ const completeCurrentOrder = async () => {
   }
 
   try {
+    // First get the full order details to access orderNumber
+    const orderDoc = await getDoc(doc(db, 'orders', currentOrder.orderId));
+    if (!orderDoc.exists()) {
+      throw new Error('Order document not found');
+    }
+    const orderData = orderDoc.data();
+    const orderNumber = orderData.orderNumber;
+
     const batch = writeBatch(db);
     
     // Complete the current order
@@ -824,14 +838,15 @@ const completeCurrentOrder = async () => {
     
     await batch.commit();
     
-    // Add activity log
+    // Add activity log WITH ORDER NUMBER
     await addDoc(collection(db, 'activityLogs'), {
       type: 'order_completed',
-      description: `Order #${currentOrder.orderId.slice(0, 4)} completed`,
+      description: `Order #${orderNumber} completed`,  // Use actual order number
       userId: user.uid,
       userEmail: user.email,
       userName: user.displayName || user.email,
       orderId: currentOrder.orderId,
+      orderNumber: orderNumber,  // Store order number in log
       timestamp: serverTimestamp()
     });
 
@@ -852,10 +867,10 @@ const completeCurrentOrder = async () => {
         createdAt: nextOrderDoc.data().createdAt?.toDate()
       };
       
-      // Get the full order details
-      const orderDoc = await getDoc(doc(db, 'orders', nextOrder.orderId));
-      if (orderDoc.exists()) {
-        const orderData = orderDoc.data();
+      // Get the full order details (including orderNumber)
+      const nextOrderDocData = await getDoc(doc(db, 'orders', nextOrder.orderId));
+      if (nextOrderDocData.exists()) {
+        const nextOrderData = nextOrderDocData.data();
         
         // Update both order and queue documents in a batch
         const nextBatch = writeBatch(db);
@@ -879,19 +894,20 @@ const completeCurrentOrder = async () => {
         
         await nextBatch.commit();
         
-        // Set current order with all necessary data
+        // Set current order with all necessary data including orderNumber
         setCurrentOrder({
           ...nextOrder,
-          ...orderData,
-          id: nextOrder.id
+          ...nextOrderData,
+          id: nextOrder.id,
+          orderNumber: nextOrderData.orderNumber  // Ensure orderNumber is included
         });
         
-        showSnackbar(`Now processing order ${nextOrder.orderId.slice(0, 6)}`, 'success');
+        showSnackbar(`Now processing order #${nextOrderData.orderNumber}`, 'success');  // Show order number
       }
     } else {
       // No more orders in queue
       setCurrentOrder(null);
-      showSnackbar('Order completed successfully', 'success');
+      showSnackbar(`Order #${orderNumber} completed successfully`, 'success');  // Show completed order number
     }
   } catch (error) {
     console.error('Error completing order:', error);
@@ -3459,8 +3475,8 @@ const validateShiftStatus = (shift) => {
                 <ListItemText 
                   primary={
                     <Typography fontWeight="medium" color="#6f4e37">
-                     Order #{order.id.slice(0, 4)} - K{order.total?.toFixed(2)}
-                    </Typography>
+  Order #{order.orderNumber} - K{order.total?.toFixed(2)}
+</Typography>
                   } 
                   secondary={
                     <Box component="span" sx={{ color: '#9c8c72' }}>
@@ -4317,8 +4333,8 @@ const validateShiftStatus = (shift) => {
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Box>
             <Typography>
-              Order #{currentOrder.orderId?.slice(0, 4)}
-            </Typography>
+  Order #{currentOrder.orderNumber}
+</Typography>
             <Typography>
               Customer: {currentOrder.customerName || 'Walk-in'}
             </Typography>
@@ -4426,7 +4442,7 @@ const validateShiftStatus = (shift) => {
                     }}
                   />
                 </TableCell>
-                <TableCell>{order.orderId?.slice(0, 4)}</TableCell>
+                <TableCell>{order.orderNumber}</TableCell>
                 <TableCell>{order.customerName || 'Walk-in'}</TableCell>
                 <TableCell align="right">K{order.total?.toFixed(2) || '0.00'}</TableCell>
                 <TableCell align="right">
@@ -5249,7 +5265,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
     // Add data rows
     salesData.forEach(order => {
       const row = worksheet.addRow([
-        `#${order.id.slice(0, 4)}`, // Only first 4 characters with # prefix
+        `#${order.orderNumber || order.id.slice(0, 4)}`, // Use orderNumber if available, else fallback to id
         order.customerName || 'Walk-in',
         order.total || 0,
         order.createdAt?.toDate ? format(order.createdAt.toDate(), 'HH:mm') : format(new Date(order.createdAt), 'HH:mm') || 'N/A',
@@ -8052,8 +8068,8 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Box>
             <Typography>
-              Order #{currentOrder.orderId?.slice(0, 4)}
-            </Typography>
+  Order #{currentOrder.orderNumber}
+</Typography>
             <Typography>
               Customer: {currentOrder.customerName || 'Walk-in'}
             </Typography>
@@ -8161,7 +8177,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                     }}
                   />
                 </TableCell>
-                <TableCell>{order.orderId?.slice(0, 4)}</TableCell>
+                <TableCell>{order.orderNumber}</TableCell>
                 <TableCell>{order.customerName || 'Walk-in'}</TableCell>
                 <TableCell align="right">K{order.total?.toFixed(2) || '0.00'}</TableCell>
                 <TableCell align="right">
@@ -8819,7 +8835,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                   <TableBody>
                     {salesData.slice(0, 5).map(order => (
                       <TableRow key={order.id}>
-                        <TableCell>{order.id.slice(0, 4)}</TableCell>
+                        <TableCell>{order.orderNumber || order.id.slice(0, 4)}</TableCell>
                         <TableCell>{order.customerName}</TableCell>
                         <TableCell align="right">K{order.total?.toFixed(2)}</TableCell>
                         <TableCell>{order.createdAt?.toDate ? format(order.createdAt.toDate(), 'HH:mm') : 'N/A'}</TableCell>
