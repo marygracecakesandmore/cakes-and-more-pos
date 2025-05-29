@@ -18,7 +18,7 @@ import {
   LocalCafe, AttachMoney, People, Inventory, BarChart,
   TrendingUp, TrendingDown, Receipt, Star, Schedule,
   PointOfSale, CardGiftcard, TableRestaurant, Queue,
-  Print, PictureAsPdf, Description
+  Print, PictureAsPdf, Description, Cake
 } from '@mui/icons-material';
 
 // MUI Components
@@ -386,15 +386,28 @@ const calculateQueueEfficiency = (queueItems) => {
   const doc = new jsPDF();
   let currentY = 20;
   
-  // Add logo and header with improved styling
+  // Color scheme
+  const primaryColor = [100, 150, 200]; // Light blue
+  const secondaryColor = [220, 240, 255]; // Very light blue
+  const textColor = [50, 70, 90]; // Dark blue-gray
+  const lightBorderColor = [200, 220, 240]; // Light border color
+  
+  // Add logo and header with light blue theme
   try {
-    doc.addImage(logo, 'PNG', 14, 10, 40, 20);
+    const logoWidth = 50; // Increased from 40
+    const logoHeight = 25; // Increased from 20
+    const pageWidth = 210; // A4 width in mm
+    const logoX = (pageWidth - logoWidth) / 2; // Calculate center position
+    doc.addImage(logo, 'PNG', logoX, 10, logoWidth, logoHeight);
+    currentY += 30; // Increased spacing to account for larger logo
   } catch (e) {
     console.warn('Could not load logo:', e);
+    currentY += 5; // Less spacing if no logo
   }
   
   doc.setFontSize(20);
-  doc.setTextColor(150, 50, 80); // Mary Grace brand color
+  doc.setTextColor(...primaryColor);
+  doc.setFont(undefined, 'bold');
   doc.text('MARY GRACE CAKES AND MORE', 105, currentY + 10, { align: 'center' });
   currentY += 20;
   
@@ -402,11 +415,11 @@ const calculateQueueEfficiency = (queueItems) => {
   doc.text('Sales Performance Report', 105, currentY, { align: 'center' });
   currentY += 15;
   
-  // Report metadata with improved styling
+  // Report metadata with light styling
   doc.setFontSize(10);
-  doc.setTextColor(80);
-  doc.setDrawColor(150, 50, 80);
-  doc.setLineWidth(0.5);
+  doc.setTextColor(...textColor);
+  doc.setDrawColor(...lightBorderColor);
+  doc.setLineWidth(0.3);
   doc.line(14, currentY, 196, currentY);
   currentY += 5;
   
@@ -415,9 +428,9 @@ const calculateQueueEfficiency = (queueItems) => {
   doc.text(`Page 1`, 190, currentY, { align: 'right' });
   currentY += 10;
   
-  // Summary section with improved styling
+  // Summary section with light blue theme
   doc.setFontSize(12);
-  doc.setTextColor(0);
+  doc.setTextColor(...textColor);
   doc.setFont(undefined, 'bold');
   doc.text('Business Summary', 14, currentY);
   currentY += 7;
@@ -436,19 +449,28 @@ const calculateQueueEfficiency = (queueItems) => {
     body: summaryData.map(item => [item.label, item.value]),
     theme: 'grid',
     headStyles: { 
-      fillColor: [150, 50, 80],
+      fillColor: primaryColor,
       textColor: 255,
       fontStyle: 'bold'
     },
+    bodyStyles: {
+      fillColor: secondaryColor,
+      textColor: textColor
+    },
+    alternateRowStyles: {
+      fillColor: [245, 249, 255]
+    },
     styles: { 
       cellPadding: 5,
-      fontSize: 11
+      fontSize: 11,
+      lineColor: lightBorderColor,
+      lineWidth: 0.3
     },
     margin: { left: 14 }
   });
   currentY = doc.lastAutoTable.finalY + 15;
   
-  // Top Products section with improved styling
+  // Top Products section
   doc.setFont(undefined, 'bold');
   doc.text('Top Selling Products', 14, currentY);
   currentY += 7;
@@ -466,20 +488,29 @@ const calculateQueueEfficiency = (queueItems) => {
     body: topProductsData,
     theme: 'grid',
     headStyles: { 
-      fillColor: [150, 50, 80],
+      fillColor: primaryColor,
       textColor: 255,
       fontStyle: 'bold'
     },
+    bodyStyles: {
+      fillColor: secondaryColor,
+      textColor: textColor
+    },
+    alternateRowStyles: {
+      fillColor: [245, 249, 255]
+    },
     styles: { 
       cellPadding: 5,
-      fontSize: 10
+      fontSize: 10,
+      lineColor: lightBorderColor,
+      lineWidth: 0.3
     },
     margin: { left: 14 },
     pageBreak: 'auto'
   });
   currentY = doc.lastAutoTable.finalY + 15;
   
-  // Recent Orders section with improved styling
+  // Recent Orders section
   doc.setFont(undefined, 'bold');
   doc.text('Recent Orders', 14, currentY);
   currentY += 7;
@@ -497,26 +528,35 @@ const calculateQueueEfficiency = (queueItems) => {
     body: ordersData,
     theme: 'grid',
     headStyles: { 
-      fillColor: [150, 50, 80],
+      fillColor: primaryColor,
       textColor: 255,
       fontStyle: 'bold'
     },
+    bodyStyles: {
+      fillColor: secondaryColor,
+      textColor: textColor
+    },
+    alternateRowStyles: {
+      fillColor: [245, 249, 255]
+    },
     styles: { 
       cellPadding: 5,
-      fontSize: 10
+      fontSize: 10,
+      lineColor: lightBorderColor,
+      lineWidth: 0.3
     },
     margin: { left: 14 },
     pageBreak: 'auto'
   });
   
-  // Add page numbers with improved footer
+  // Add page numbers with light footer
   const pageCount = doc.internal.getNumberOfPages();
   for(let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.setDrawColor(150, 50, 80);
-    doc.setLineWidth(0.5);
+    doc.setTextColor(...textColor);
+    doc.setDrawColor(...lightBorderColor);
+    doc.setLineWidth(0.3);
     doc.line(14, 280, 196, 280);
     doc.text(`Page ${i} of ${pageCount}`, 190, 285, { align: 'right' });
     doc.text('Mary Grace Cakes and More - Confidential', 14, 285);
@@ -530,15 +570,28 @@ const generateAttendanceReport = () => {
   const doc = new jsPDF();
   let currentY = 20;
   
-  // Header with Mary Grace styling
+  // Color scheme
+  const primaryColor = [100, 150, 200]; // Light blue
+  const secondaryColor = [220, 240, 255]; // Very light blue
+  const textColor = [50, 70, 90]; // Dark blue-gray
+  const lightBorderColor = [200, 220, 240]; // Light border color
+  
+  // Header with light blue theme
   try {
-    doc.addImage(logo, 'PNG', 14, 10, 40, 20);
+    const logoWidth = 50; // Increased from 40
+    const logoHeight = 25; // Increased from 20
+    const pageWidth = 210; // A4 width in mm
+    const logoX = (pageWidth - logoWidth) / 2; // Calculate center position
+    doc.addImage(logo, 'PNG', logoX, 10, logoWidth, logoHeight);
+    currentY += 30; // Increased spacing to account for larger logo
   } catch (e) {
     console.warn('Could not load logo:', e);
+    currentY += 5; // Less spacing if no logo
   }
   
   doc.setFontSize(20);
-  doc.setTextColor(150, 50, 80);
+  doc.setTextColor(...primaryColor);
+  doc.setFont(undefined, 'bold');
   doc.text('MARY GRACE CAKES AND MORE', 105, currentY + 10, { align: 'center' });
   currentY += 20;
   
@@ -548,9 +601,9 @@ const generateAttendanceReport = () => {
   
   // Metadata
   doc.setFontSize(10);
-  doc.setTextColor(80);
-  doc.setDrawColor(150, 50, 80);
-  doc.setLineWidth(0.5);
+  doc.setTextColor(...textColor);
+  doc.setDrawColor(...lightBorderColor);
+  doc.setLineWidth(0.3);
   doc.line(14, currentY, 196, currentY);
   currentY += 5;
   
@@ -561,7 +614,7 @@ const generateAttendanceReport = () => {
   
   // Staff Performance
   doc.setFontSize(12);
-  doc.setTextColor(0);
+  doc.setTextColor(...textColor);
   doc.setFont(undefined, 'bold');
   doc.text('Staff Performance Metrics', 14, currentY);
   currentY += 7;
@@ -579,26 +632,35 @@ const generateAttendanceReport = () => {
     body: staffData,
     theme: 'grid',
     headStyles: { 
-      fillColor: [150, 50, 80],
+      fillColor: primaryColor,
       textColor: 255,
       fontStyle: 'bold'
     },
+    bodyStyles: {
+      fillColor: secondaryColor,
+      textColor: textColor
+    },
+    alternateRowStyles: {
+      fillColor: [245, 249, 255]
+    },
     styles: { 
       cellPadding: 5,
-      fontSize: 10
+      fontSize: 10,
+      lineColor: lightBorderColor,
+      lineWidth: 0.3
     },
     margin: { left: 14 },
     pageBreak: 'auto'
   });
   
-  // Add page numbers with improved footer
+  // Add page numbers with light footer
   const pageCount = doc.internal.getNumberOfPages();
   for(let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.setDrawColor(150, 50, 80);
-    doc.setLineWidth(0.5);
+    doc.setTextColor(...textColor);
+    doc.setDrawColor(...lightBorderColor);
+    doc.setLineWidth(0.3);
     doc.line(14, 280, 196, 280);
     doc.text(`Page ${i} of ${pageCount}`, 190, 285, { align: 'right' });
     doc.text('Mary Grace Cakes and More - Confidential', 14, 285);
@@ -612,15 +674,28 @@ const generateInventoryReport = () => {
   const doc = new jsPDF();
   let currentY = 20;
   
-  // Header with Mary Grace styling
+  // Color scheme
+  const primaryColor = [100, 150, 200]; // Light blue
+  const secondaryColor = [220, 240, 255]; // Very light blue
+  const textColor = [50, 70, 90]; // Dark blue-gray
+  const lightBorderColor = [200, 220, 240]; // Light border color
+  
+  // Header with light blue theme
   try {
-    doc.addImage(logo, 'PNG', 14, 10, 40, 20);
+    const logoWidth = 50; // Increased from 40
+    const logoHeight = 25; // Increased from 20
+    const pageWidth = 210; // A4 width in mm
+    const logoX = (pageWidth - logoWidth) / 2; // Calculate center position
+    doc.addImage(logo, 'PNG', logoX, 10, logoWidth, logoHeight);
+    currentY += 30; // Increased spacing to account for larger logo
   } catch (e) {
     console.warn('Could not load logo:', e);
+    currentY += 5; // Less spacing if no logo
   }
   
   doc.setFontSize(20);
-  doc.setTextColor(150, 50, 80);
+  doc.setTextColor(...primaryColor);
+  doc.setFont(undefined, 'bold');
   doc.text('MARY GRACE CAKES AND MORE', 105, currentY + 10, { align: 'center' });
   currentY += 20;
   
@@ -630,9 +705,9 @@ const generateInventoryReport = () => {
   
   // Metadata
   doc.setFontSize(10);
-  doc.setTextColor(80);
-  doc.setDrawColor(150, 50, 80);
-  doc.setLineWidth(0.5);
+  doc.setTextColor(...textColor);
+  doc.setDrawColor(...lightBorderColor);
+  doc.setLineWidth(0.3);
   doc.line(14, currentY, 196, currentY);
   currentY += 5;
   
@@ -643,7 +718,7 @@ const generateInventoryReport = () => {
   
   // Inventory Summary
   doc.setFontSize(12);
-  doc.setTextColor(0);
+  doc.setTextColor(...textColor);
   doc.setFont(undefined, 'bold');
   doc.text('Inventory Summary', 14, currentY);
   currentY += 7;
@@ -671,26 +746,35 @@ const generateInventoryReport = () => {
     body: inventoryData,
     theme: 'grid',
     headStyles: { 
-      fillColor: [150, 50, 80],
+      fillColor: primaryColor,
       textColor: 255,
       fontStyle: 'bold'
     },
+    bodyStyles: {
+      fillColor: secondaryColor,
+      textColor: textColor
+    },
+    alternateRowStyles: {
+      fillColor: [245, 249, 255]
+    },
     styles: { 
       cellPadding: 5,
-      fontSize: 10
+      fontSize: 10,
+      lineColor: lightBorderColor,
+      lineWidth: 0.3
     },
     margin: { left: 14 },
     pageBreak: 'auto'
   });
   
-  // Add page numbers with improved footer
+  // Add page numbers with light footer
   const pageCount = doc.internal.getNumberOfPages();
   for(let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.setDrawColor(150, 50, 80);
-    doc.setLineWidth(0.5);
+    doc.setTextColor(...textColor);
+    doc.setDrawColor(...lightBorderColor);
+    doc.setLineWidth(0.3);
     doc.line(14, 280, 196, 280);
     doc.text(`Page ${i} of ${pageCount}`, 190, 285, { align: 'right' });
     doc.text('Mary Grace Cakes and More - Confidential', 14, 285);
@@ -721,7 +805,7 @@ const generateInventoryReport = () => {
             display: 'flex',
             alignItems: 'center'
           }}>
-            <LocalCafe sx={{ mr: 2, fontSize: 'inherit' }} />
+            <Cake sx={{ mr: 2, fontSize: 'inherit' }} />
             Mary Grace Cakes & More Insights
           </Typography>
           <Typography variant="subtitle1" sx={{ color: '#8d6e63', mt: 1 }}>
@@ -983,7 +1067,7 @@ const generateInventoryReport = () => {
             boxShadow: '0 4px 12px rgba(93, 64, 55, 0.08)'
           }}>
             <CardHeader
-              title="Top Brews"
+              title="Top Treats"
               titleTypographyProps={{ 
                 variant: 'h5',
                 color: '#5d4037'

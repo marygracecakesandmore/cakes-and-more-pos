@@ -65,7 +65,7 @@ import {
 import {
   LocalCafe, People, Inventory, Receipt, AttachMoney,
   Star, Note, Edit, Close, Check, Announcement,
-  Report, ShoppingCart, Schedule, AccessTime, Refresh
+  Report, ShoppingCart, Schedule, AccessTime, Refresh, Cake, BakeryDining, Restaurant, NightsStay, Favorite
 } from '@mui/icons-material';
 import { format, isToday } from 'date-fns';
 import { CalendarToday, SwapHoriz } from '@mui/icons-material';
@@ -236,72 +236,90 @@ const generatePDFReport = async () => {
     
     let currentY = 20;
     
-    // Add logo and header
+    // Add centered logo with light blue accent
     try {
-      doc.addImage(logo, 'PNG', 14, 10, 40, 20);
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const logoWidth = 40;
+      const logoX = (pageWidth - logoWidth) / 2; // Center the logo
+      doc.addImage(logo, 'PNG', logoX, 10, logoWidth, 20);
     } catch (e) {
       console.warn('Could not load logo:', e);
     }
     
-    // Title with Mary Grace styling
-    doc.setFontSize(20);
-    doc.setTextColor(150, 50, 80);
+    // Title with light blue theme
+    currentY += 25; // Adjusted for centered logo
+    doc.setFontSize(18);
+    doc.setTextColor(70, 130, 180); // Light blue color
     doc.setFont('helvetica', 'bold');
-    doc.text('MARY GRACE CAKES AND MORE', 105, currentY + 10, { align: 'center' });
-    currentY += 20;
+    doc.text('SALES PERFORMANCE REPORT', 105, currentY, { align: 'center' });
+    currentY += 10;
     
-    doc.setFontSize(16);
-    doc.text('Staff Sales Report', 105, currentY, { align: 'center' });
+    // Subtitle with subtle styling
+    doc.setFontSize(12);
+    doc.setTextColor(100, 149, 237); // Lighter blue
+    doc.text('Mary Grace Cakes and More', 105, currentY, { align: 'center' });
     currentY += 15;
     
-    // Report metadata with improved styling and proper alignment
+    // Report metadata with light styling
     doc.setFontSize(10);
-    doc.setTextColor(80);
-    doc.setDrawColor(150, 50, 80);
-    doc.setLineWidth(0.5);
+    doc.setTextColor(100);
+    doc.setDrawColor(200, 220, 240); // Very light blue divider
+    doc.setLineWidth(0.2);
     doc.line(14, currentY, 196, currentY);
     currentY += 5;
     
-    // Create three columns for metadata
+    // Metadata columns
     const leftCol = 14;
-    const centerCol = 105;
     const rightCol = 190;
     
-    // Left-aligned report period (on its own line)
-    doc.text(`Report Period: ${format(new Date(salesReportDateRange.start), 'MMM d, yyyy')} to ${format(new Date(salesReportDateRange.end), 'MMM d, yyyy')}`, leftCol, currentY);
-    currentY += 7; // Move down for next line
+    // Report period
+    doc.setTextColor(70, 130, 180); // Light blue
+    doc.setFont('helvetica', 'bold');
+    doc.text('Report Period:', leftCol, currentY);
+    doc.setTextColor(100);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${format(new Date(salesReportDateRange.start), 'MMM d, yyyy')} to ${format(new Date(salesReportDateRange.end), 'MMM d, yyyy')}`, leftCol + 28, currentY);
     
-    // Staff name (on its own line)
-    const staffName = `Staff: ${userData?.name || user.email}`;
-    doc.text(staffName, leftCol, currentY);
+    // Staff name
+    currentY += 5;
+    doc.setTextColor(70, 130, 180);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Staff Member:', leftCol, currentY);
+    doc.setTextColor(100);
+    doc.setFont('helvetica', 'normal');
+    doc.text(userData?.name || user.email, leftCol + 28, currentY);
     
-    // Right-aligned page number (on its own line at the top)
-    doc.text(`Page 1`, rightCol, currentY - 7, { align: 'right' });
+    // Page number
+    doc.text(`Page 1`, rightCol, currentY - 5, { align: 'right' });
     currentY += 10;
     
-    // Summary stats with PNG currency
+    // Summary stats with light blue accent
     const totalSales = salesData.reduce((sum, order) => sum + (order.total || 0), 0);
     const totalOrders = salesData.length;
     
+    // Summary box with light background
+    doc.setFillColor(240, 248, 255); // Alice blue background
+    doc.rect(leftCol, currentY, 182, 20, 'F');
+    doc.setDrawColor(200, 220, 240);
+    doc.rect(leftCol, currentY, 182, 20);
+    
     doc.setFontSize(12);
-    doc.setTextColor(0);
+    doc.setTextColor(70, 130, 180);
     doc.setFont('helvetica', 'bold');
-    doc.text('Performance Summary', leftCol, currentY);
-    currentY += 7;
+    doc.text('SUMMARY', leftCol + 5, currentY + 7);
     
     doc.setFont('helvetica', 'normal');
-    doc.text(`Total Orders Processed: ${totalOrders}`, leftCol, currentY);
-    currentY += 7;
-    doc.text(`Total Sales Generated: K ${totalSales.toFixed(2)}`, leftCol, currentY);
-    currentY += 15;
+    doc.text(`Total Orders: ${totalOrders}`, leftCol + 50, currentY + 7);
+    doc.text(`Total Sales: K ${totalSales.toFixed(2)}`, leftCol + 120, currentY + 7);
+    currentY += 25;
     
-    // Sales table with improved styling
+    // Sales table with light blue theme
     const tableData = salesData.map(order => [
-      `#${order.id.slice(0, 4)}`, // Only first 4 characters
+      `#${order.id.slice(0, 4)}`,
       order.createdAt?.toDate ? format(order.createdAt.toDate(), 'MMM d, yyyy h:mm a') : format(new Date(order.createdAt), 'MMM d, yyyy h:mm a') || 'N/A',
       order.customerName || 'Walk-in',
       `K ${order.total?.toFixed(2) || '0.00'}`,
-      order.status || 'completed' // Show actual status or default to 'completed'
+      order.status || 'completed'
     ]);
     
     autoTable(doc, {
@@ -310,38 +328,44 @@ const generatePDFReport = async () => {
       body: tableData,
       theme: 'grid',
       headStyles: { 
-        fillColor: [150, 50, 80],
+        fillColor: [70, 130, 180], // Light blue header
         textColor: 255,
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 10
       },
       styles: { 
         cellPadding: 5,
-        fontSize: 10
+        fontSize: 9,
+        textColor: 60,
+        lineColor: [220, 230, 240] // Very light grid lines
       },
       margin: { left: leftCol },
       columnStyles: {
-        0: { cellWidth: 30 }, // Fixed width for Order ID
-        1: { cellWidth: 40 }, // Fixed width for Date
+        0: { cellWidth: 25 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 'auto' },
         3: { cellWidth: 25, halign: 'right' },
         4: { cellWidth: 20, halign: 'center' }
       },
-      pageBreak: 'auto'
+      pageBreak: 'auto',
+      tableLineColor: [220, 230, 240] // Light table border
     });
     
-    // Add page numbers with improved footer
+    // Footer with light styling
     const pageCount = doc.internal.getNumberOfPages();
     for(let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setTextColor(100);
-      doc.setDrawColor(150, 50, 80);
-      doc.setLineWidth(0.5);
+      doc.setDrawColor(220, 230, 240);
+      doc.setLineWidth(0.2);
       doc.line(leftCol, 280, 196, 280);
       doc.text(`Page ${i} of ${pageCount}`, rightCol, 285, { align: 'right' });
-      doc.text('Mary Grace Cakes and More - Confidential', leftCol, 285);
+      doc.setTextColor(70, 130, 180);
+      doc.text('Mary Grace Cakes and More', leftCol, 285);
     }
     
-    doc.save('Mary Grace Cakes and More - Staff Sales Report.pdf');
+    doc.save('Sales Performance Report.pdf');
     showSnackbar('PDF report generated successfully!', 'success');
   } catch (error) {
     console.error('Error generating PDF:', error);
@@ -2136,7 +2160,7 @@ useEffect(() => {
   return () => clearTimeout(timer);
 }, [customerSearch]);
 
-const getWeatherBasedSuggestions = () => {
+const getBakerySuggestions = () => {
   const now = new Date();
   const hour = now.getHours();
   const month = now.getMonth();
@@ -2145,16 +2169,17 @@ const getWeatherBasedSuggestions = () => {
 
   const suggestions = [];
   
+  // Weather-based suggestions
   if (isHot) {
     suggestions.push({
-      message: "It's hot today — promote Cold Brew!",
-      products: ["Cold Brew", "Iced Coffee", "Iced Tea", "Smoothies"],
+      message: "It's a warm day — perfect for our refreshing treats!",
+      products: ["Iced Lemon Cake", "Fruit Tartlets", "Chilled Cheesecake", "Mango Mousse"],
       icon: <WbSunny color="warning" />
     });
   } else if (isCold) {
     suggestions.push({
-      message: "It's chilly today — promote Hot Chocolate!",
-      products: ["Hot Chocolate", "Latte", "Cappuccino", "Tea"],
+      message: "Cozy up with our warm comfort desserts!",
+      products: ["Hot Chocolate Fudge Cake", "Bread Pudding", "Apple Pie", "Cinnamon Rolls"],
       icon: <AcUnit color="info" />
     });
   }
@@ -2162,15 +2187,43 @@ const getWeatherBasedSuggestions = () => {
   // Time-based suggestions
   if (hour >= 6 && hour <= 10) {
     suggestions.push({
-      message: "Good morning! Suggest breakfast items",
-      products: ["Croissant", "Muffin", "Breakfast Sandwich", "Oatmeal"],
+      message: "Good morning! Try our fresh breakfast pastries",
+      products: ["Croissants", "Danish Pastries", "Morning Buns", "Scones"],
       icon: <WbSunny color="secondary" />
+    });
+  } else if (hour >= 11 && hour <= 14) {
+    suggestions.push({
+      message: "Lunch time! Pair your meal with our specialties",
+      products: ["Quiche", "Savory Pies", "Sandwich Breads", "Salad Bread Bowls"],
+      icon: <Restaurant color="primary" />
     });
   } else if (hour >= 15 && hour <= 17) {
     suggestions.push({
-      message: "Afternoon slump? Suggest energy boosters",
-      products: ["Espresso Shot", "Matcha Latte", "Energy Bar", "Cookie"],
-      icon: <Lightbulb color="primary" />
+      message: "Afternoon tea time! Enjoy our sweet treats",
+      products: ["Macarons", "Petit Fours", "Tea Cakes", "Madeleines"],
+      icon: <LocalCafe color="primary" />
+    });
+  } else if (hour >= 18 && hour <= 21) {
+    suggestions.push({
+      message: "Evening dessert specials",
+      products: ["Chocolate Lava Cake", "Tiramisu", "Crème Brûlée", "Seasonal Cake Slices"],
+      icon: <NightsStay color="primary" />
+    });
+  }
+
+  // Special occasion detection
+  const day = now.getDate();
+  if ((month === 1 && day === 14) || (month === 1 && now.getDay() === 6 && day >= 7 && day <= 14)) {
+    suggestions.push({
+      message: "Valentine's Specials!",
+      products: ["Heart-shaped Cakes", "Chocolate Strawberry Tart", "Red Velvet Cupcakes", "Love Letter Cookies"],
+      icon: <Favorite color="error" />
+    });
+  } else if (month === 11 && day >= 20 && day <= 30) {
+    suggestions.push({
+      message: "Holiday Season Favorites!",
+      products: ["Yule Log Cake", "Gingerbread House", "Fruit Cake", "Peppermint Brownies"],
+      icon: <Star color="warning" />
     });
   }
 
@@ -2179,7 +2232,7 @@ const getWeatherBasedSuggestions = () => {
 
 // Add this useEffect to set suggestions
 useEffect(() => {
-  setProductSuggestions(getWeatherBasedSuggestions());
+  setProductSuggestions(getBakerySuggestions());
 }, []);
 
 // Add this function to fetch rewards
@@ -2581,7 +2634,7 @@ const validateShiftStatus = (shift) => {
               color: '#6f4e37',
               border: '2px solid #6f4e37'
             }}>
-              <LocalCafe />
+              <Cake />
             </Avatar>
           }
           title="Quick Actions"
@@ -5309,7 +5362,11 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
         display: 'flex',
         alignItems: 'center'
       }}>
-        <LocalCafe sx={{ mr: 2, color: '#8d6e63' }} />
+        <Cake sx={{ 
+          mr: 2, 
+          color: '#8d6e63',
+          fontSize: '2rem' // Slightly larger for better visibility
+        }} />
         Mary Grace Cakes & More Dashboard
       </Typography>
       <Chip 
@@ -5317,7 +5374,8 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
         sx={{ 
           bgcolor: '#d7ccc8', 
           color: '#5d4037',
-          fontFamily: "'Roboto', sans-serif"
+          fontFamily: "'Roboto', sans-serif",
+          fontSize: '0.9rem'
         }}
       />
     </Box>
@@ -5355,7 +5413,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                 color: '#5d4037',
                 fontFamily: "'Roboto Condensed', sans-serif"
               }}>
-                Today's Brew Revenue
+                Today's Sweet Revenue
               </Typography>
             }
             subheader={
@@ -5420,7 +5478,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                 color: '#5d4037',
                 fontFamily: "'Roboto Condensed', sans-serif"
               }}>
-                Barista Team
+                Bakery Team
               </Typography>
             }
             subheader={
@@ -5537,7 +5595,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                 color: '#5d4037',
                 fontFamily: "'Roboto Condensed', sans-serif"
               }}>
-                Daily Brew Sales
+                Daily Cake Sales
               </Typography>
             }
             avatar={
@@ -5673,7 +5731,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
           color: '#5d4037',
           fontFamily: "'Roboto Condensed', sans-serif"
         }}>
-          Barista Attendance
+          Staff Attendance
         </Typography>
       }
       avatar={
@@ -5956,7 +6014,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
             color: '#5d4037',
             fontFamily: "'Roboto Condensed', sans-serif"
           }}>
-            Top Brews
+            Top Treats
           </Typography>
         }
         avatar={
@@ -6063,7 +6121,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
             color: '#5d4037',
             fontFamily: "'Roboto Condensed', sans-serif"
           }}>
-            Barista Notes
+            Staff Notes
           </Typography>
         }
         avatar={
@@ -6194,7 +6252,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
           fontFamily: "'Roboto Condensed', sans-serif",
           fontSize: '1.25rem'
         }}>
-          Pending BrewMaster Approvals
+          Pending Approvals 
         </Typography>
       }
       avatar={
@@ -6705,7 +6763,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
             color: '#5d4037',
             fontFamily: "'Roboto Condensed', sans-serif"
           }}>
-            Coffee Nook Management
+            Bakery Nook Management
           </Typography>
         }
         subheader={
@@ -6781,7 +6839,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
           onClick={() => setShowTableManagementDialog(true)}
           startIcon={<ViewList sx={{ color: '#8d6e63' }} />}
         >
-          View All Coffee Nooks
+          View All Sweet Spots
         </Button>
       </CardContent>
     </Card>
@@ -6821,7 +6879,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
             color: '#5d4037',
             fontFamily: "'Roboto Condensed', sans-serif"
           }}>
-            Coffee Queue
+            Order Queue
           </Typography>
         }
         subheader={
@@ -6929,7 +6987,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
             color: '#5d4037',
             fontFamily: "'Roboto Condensed', sans-serif"
           }}>
-            Barista Training
+            Staff Training
           </Typography>
         }
         subheader={
@@ -7028,7 +7086,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
           color: '#5d4037',
           fontFamily: "'Roboto Condensed', sans-serif"
         }}>
-          Coffee Rewards
+          Loyalty Rewards
         </Typography>
       }
       avatar={
@@ -7159,7 +7217,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
             color: '#5d4037',
             fontFamily: "'Roboto Condensed', sans-serif"
           }}>
-            Barista Shifts
+            Staff Shifts
           </Typography>
         }
         subheader={
@@ -7278,7 +7336,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
             color: '#5d4037',
             fontFamily: "'Roboto Condensed', sans-serif"
           }}>
-            Barista Performance
+            Staff Performance
           </Typography>
         }
         avatar={
@@ -7386,19 +7444,19 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                     <TableCell align="center">
                       <ButtonGroup size="small">
                         <Button 
-                          onClick={() => handleUpdateStaffRole(staff.id, 'barista')}
-                          startIcon={<LocalCafe sx={{ color: '#8d6e63' }} />}
-                          sx={{
-                            color: '#5d4037',
-                            borderColor: '#a1887f',
-                            '&:hover': {
-                              bgcolor: 'rgba(141, 110, 99, 0.1)',
-                              borderColor: '#8d6e63'
-                            }
-                          }}
-                        >
-                          Barista
-                        </Button>
+  onClick={() => handleUpdateStaffRole(staff.id, 'baker')}
+  startIcon={<BakeryDining sx={{ color: '#8d6e63' }} />}  // Using BakeryDining icon
+  sx={{
+    color: '#5d4037',
+    borderColor: '#a1887f',
+    '&:hover': {
+      bgcolor: 'rgba(141, 110, 99, 0.1)',
+      borderColor: '#8d6e63'
+    }
+  }}
+>
+  Pastry Chef
+</Button>
                         <Button 
                           onClick={() => handleUpdateStaffRole(staff.id, 'cashier')}
                           startIcon={<PointOfSale sx={{ color: '#8d6e63' }} />}

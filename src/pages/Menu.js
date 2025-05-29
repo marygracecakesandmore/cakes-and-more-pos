@@ -26,6 +26,11 @@ import {
 } from '@mui/material';
 import { 
   LocalCafe, 
+  Cake,              // Changed from LocalCafe
+  BakeryDining,      // New bakery icon
+  Icecream,          // Additional bakery icon
+  PieChart,          // Additional bakery icon
+  LocalDining,        // Additional food icon
   Search, 
   AddShoppingCart,
   AttachMoney,
@@ -184,7 +189,7 @@ const Menu = () => {
         <Box textAlign="center">
           <CircularProgress size={60} thickness={4} sx={{ color: '#6f4e37' }} />
           <Typography variant="h6" sx={{ mt: 3, color: '#5d4037' }}>
-            Brewing our menu for you...
+            Baking up our menu for you...
           </Typography>
         </Box>
       </Container>
@@ -219,15 +224,15 @@ const Menu = () => {
         textAlign: 'center'
       }}>
         <Typography variant="h2" component="h1" sx={{ 
-          fontWeight: 700,
-          mb: 2,
-          fontFamily: '"Playfair Display", serif'
-        }}>
-          Our Artisan Menu
-        </Typography>
-        <Typography variant="h5" sx={{ mb: 3 }}>
-          Handcrafted with passion, served with love
-        </Typography>
+  fontWeight: 700,
+  mb: 2,
+  fontFamily: '"Playfair Display", serif'
+}}>
+  Our Artisan Bakery
+</Typography>
+<Typography variant="h5" sx={{ mb: 3 }}>
+  Handcrafted pastries, served with love
+</Typography>
         <Button 
           variant="contained" 
           size="large" 
@@ -339,7 +344,7 @@ const Menu = () => {
           backgroundColor: 'rgba(255,255,255,0.8)',
           backdropFilter: 'blur(10px)'
         }}>
-          <LocalCafe sx={{ fontSize: 64, color: '#d4a762', mb: 2 }} />
+          <BakeryDining sx={{ fontSize: 64, color: '#d4a762', mb: 2 }} />
           <Typography variant="h4" sx={{ color: '#5d4037', mb: 1 }}>
             No items found
           </Typography>
@@ -397,16 +402,16 @@ const Menu = () => {
                   />
                 ) : (
                   <Box sx={{ 
-                    height: 220, 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    alignItems: 'center',
-                    backgroundColor: '#f5f0e6',
-                    borderTopLeftRadius: '12px',
-                    borderTopRightRadius: '12px'
-                  }}>
-                    <LocalCafe sx={{ fontSize: 60, color: '#d4a762' }} />
-                  </Box>
+  height: 220, 
+  display: 'flex', 
+  justifyContent: 'center', 
+  alignItems: 'center',
+  backgroundColor: '#f5f0e6',
+  borderTopLeftRadius: '12px',
+  borderTopRightRadius: '12px'
+}}>
+  <Cake sx={{ fontSize: 60, color: '#d4a762' }} />
+</Box>
                 )}
                 
                 {/* Favorite Badge */}
@@ -439,15 +444,15 @@ const Menu = () => {
                       {product.name || 'Unnamed Product'}
                     </Typography>
                     <Chip 
-                      label={getCategoryName(product.categoryId) || 'Uncategorized'} 
-                      size="small" 
-                      sx={{ 
-                        borderRadius: 2,
-                        fontWeight: 600,
-                        backgroundColor: '#f5f0e6',
-                        color: '#6f4e37'
-                      }}
-                    />
+  label={getCategoryName(product.categoryId) || 'Uncategorized'} 
+  size="small" 
+  sx={{ 
+    borderRadius: 2,
+    fontWeight: 600,
+    backgroundColor: '#f8e8d5',  // Lighter pastry color
+    color: '#8d6e63'
+  }}
+/>
                   </Box>
                   
                   {/* Stock Availability */}
@@ -500,27 +505,27 @@ const Menu = () => {
                       K{(product.price || 0).toFixed(2)}
                     </Typography>
                     <Button 
-                      variant="contained" 
-                      size="medium"
-                      onClick={() => handleOrderItem(product.id)}
-                      disabled={!product.available}
-                      sx={{ 
-                        borderRadius: 3,
-                        px: 3,
-                        py: 1,
-                        fontWeight: 600,
-                        textTransform: 'none',
-                        backgroundColor: '#6f4e37',
-                        '&:hover': {
-                          backgroundColor: '#5a3d2a'
-                        },
-                        '&:disabled': {
-                          backgroundColor: '#e0e0e0',
-                          color: '#9e9e9e'
-                        }
-                      }}
-                    >
-                      Order Item
+  variant="contained" 
+  size="medium"
+  onClick={() => handleOrderItem(product.id)}
+  disabled={!product.available}
+  sx={{ 
+    borderRadius: 3,
+    px: 3,
+    py: 1,
+    fontWeight: 600,
+    textTransform: 'none',
+    backgroundColor: '#d4a762',  // Gold/brown pastry color
+    '&:hover': {
+      backgroundColor: '#c09552'
+    },
+    '&:disabled': {
+      backgroundColor: '#e0e0e0',
+      color: '#9e9e9e'
+    }
+  }}
+>
+                      Add to Order
                     </Button>
                   </Box>
                 </CardContent>
@@ -671,9 +676,9 @@ const Menu = () => {
             alignItems: 'center'
           }}
           iconMapping={{
-            success: <LocalCafe fontSize="inherit" />,
-            error: <LocalCafe fontSize="inherit" />,
-          }}
+  success: <Cake fontSize="inherit" />,
+  error: <BakeryDining fontSize="inherit" />,
+}}
         >
           <Typography variant="body1" sx={{ fontWeight: 500 }}>
             {snackbar.message}
