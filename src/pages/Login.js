@@ -1,30 +1,34 @@
 // src/pages/Login.js
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import React, { useState, useEffect  } from 'react';
+import { useNavigate, useLocation  } from 'react-router-dom';
+import { 
+  signInWithEmailAndPassword, 
+  sendPasswordResetEmail
+} from 'firebase/auth';
 import { auth } from '../firebase';
 import {
   TextField, Button, Container, Typography, Box, Paper, Alert,
-  Avatar, CssBaseline, Slide, Fade, CircularProgress
+  Avatar, CssBaseline, Slide, Fade, CircularProgress,
+  Dialog, DialogTitle, DialogContent, DialogActions
 } from '@mui/material';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import logo from '../assets/logo.png';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import backgroundImage from '../assets/background_4.jpg'; // Changed background image import
+import backgroundImage from '../assets/background_4.jpg';
 
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976D2', // Blue
-      light: '#64B5F6', // Light blue
-      dark: '#0D47A1', // Dark blue
+      main: '#1976D2',
+      light: '#64B5F6',
+      dark: '#0D47A1',
     },
     secondary: {
-      main: '#4DB6AC', // Teal
+      main: '#4DB6AC',
     },
     background: {
       default: '#F5F5F5',
-      paper: '#FFFFFF', // White
+      paper: '#FFFFFF',
     },
   },
   typography: {
@@ -52,25 +56,76 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check for messages in the URL state
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      // Clear the state to prevent showing the message again on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    if (location.state?.error) {
+      setError(location.state.error);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location, navigate]);
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
       navigate('/dashboard');
     } catch (err) {
       let errorMessage = err.message;
+      
       if (err.code === 'auth/invalid-credential') {
         errorMessage = 'Invalid email or password';
       } else if (err.code === 'auth/too-many-requests') {
         errorMessage = 'Too many failed attempts. Please try again later.';
+      } else if (err.code === 'auth/user-token-expired' || err.code === 'auth/requires-recent-login') {
+        errorMessage = 'Your session has expired. Please log in again.';
+      } else if (err.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email. Please check your email or register.';
       }
+      
       setError(errorMessage);
+    } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenDialog = () => {
+    setOpenDialog(true);
+    setError('');
+    setSuccessMessage('');
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setError('');
+  };
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setError('Please enter your email address first');
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setSuccessMessage('Password reset email sent. Please check your inbox.');
+      setOpenDialog(false);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -152,6 +207,12 @@ const Login = () => {
                   </Alert>
                 )}
 
+                {successMessage && (
+                  <Alert severity="success" sx={{ mt: 3, mb: 2 }}>
+                    {successMessage}
+                  </Alert>
+                )}
+
                 <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 2 }}>
                   <TextField
                     margin="normal"
@@ -229,12 +290,60 @@ const Login = () => {
                       'Sign In'
                     )}
                   </Button>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                    <Button 
+                      onClick={handleOpenDialog}
+                      sx={{ color: 'primary.main' }}
+                    >
+                      Reset Password
+                    </Button>
+                  </Box>
                 </Box>
               </Paper>
             </Box>
           </Slide>
         </Container>
       </Box>
+
+      {/* Password Reset Dialog */}
+      <Dialog open={openDialog} onClose={handleCloseDialog}>
+        <DialogTitle>Reset Password</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 2 }}>
+            Enter your email address to receive a password reset link:
+          </Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="resetEmail"
+            label="Email Address"
+            type="email"
+            fullWidth
+            variant="outlined"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
+          />
+          {error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} color="primary">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handlePasswordReset}
+            color="primary"
+            disabled={loading}
+          >
+            {loading ? <CircularProgress size={24} /> : 'Confirm'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </ThemeProvider>
   );
 };

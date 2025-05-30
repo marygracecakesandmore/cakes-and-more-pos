@@ -37,6 +37,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AddIcon from '@mui/icons-material/Add';
 import ListIcon from '@mui/icons-material/List';
 import { generateReferralCode } from '../../utils/referralUtils';
+import { updateEmail, deleteUser } from 'firebase/auth';
 
 const roles = [
   { value: 'staff', label: 'Staff', color: 'default' },
@@ -58,6 +59,8 @@ const Employees = () => {
   const [referralCodesDialogOpen, setReferralCodesDialogOpen] = useState(false);
   const [employeeReferralCodes, setEmployeeReferralCodes] = useState([]);
   const [tabValue, setTabValue] = useState('all');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -125,10 +128,50 @@ const Employees = () => {
     }
   };
 
-  const handleDeleteEmployee = async (employeeId) => {
+  const handleDeleteClick = (employee) => {
+    setEmployeeToDelete(employee);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteEmployee = async () => {
+    if (!employeeToDelete) return;
+    
     try {
-      await deleteDoc(doc(db, 'users', employeeId));
-      setEmployees(employees.filter(e => e.id !== employeeId));
+      // Delete user from Firebase Authentication
+      try {
+        const user = await auth.getUserByEmail(employeeToDelete.email);
+        await deleteUser(user);
+      } catch (authError) {
+        console.warn('Could not delete user from auth (might not exist or insufficient permissions):', authError);
+      }
+
+      // Delete user document from Firestore
+      await deleteDoc(doc(db, 'users', employeeToDelete.id));
+
+      // Update local state
+      setEmployees(employees.filter(e => e.id !== employeeToDelete.id));
+      
+      // Cleanup referral codes (optional)
+      const referralCodesQuery = query(
+        collection(db, 'referralCodes'),
+        where('ownerId', '==', employeeToDelete.id)
+      );
+      const referralCodesSnapshot = await getDocs(referralCodesQuery);
+      
+      const deletePromises = [];
+      referralCodesSnapshot.forEach((doc) => {
+        deletePromises.push(deleteDoc(doc.ref));
+      });
+      
+      await Promise.all(deletePromises);
+      
+      // Update active referral codes count
+      const newActiveCodes = { ...activeReferralCodes };
+      delete newActiveCodes[employeeToDelete.id];
+      setActiveReferralCodes(newActiveCodes);
+
+      setDeleteDialogOpen(false);
+      setEmployeeToDelete(null);
     } catch (error) {
       console.error('Error deleting employee:', error);
     }
@@ -283,8 +326,9 @@ const Employees = () => {
                   >
                     <EditIcon color="primary" />
                   </IconButton>
+
                   <IconButton 
-                    onClick={() => handleDeleteEmployee(employee.id)}
+                    onClick={() => handleDeleteClick(employee)}
                     disabled={employee.id === auth.currentUser?.uid}
                     color="error"
                   >
@@ -296,6 +340,30 @@ const Employees = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete {employeeToDelete?.firstName} {employeeToDelete?.lastName}?
+            This will permanently remove their account from both authentication and the database.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={handleDeleteEmployee}
+            color="error"
+            variant="contained"
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Referral Code Generation Dialog */}
       <Dialog 

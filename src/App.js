@@ -13,6 +13,9 @@ import ActivityLogs from './pages/ActivityLogs'; // Add this import
 import PrivateRoute from './components/PrivateRoute';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import Navigation from './components/Navigation';
+import Profile from './pages/Profile';
+import ResetPassword from './pages/reset-password/ResetPassword';
+
 
 const theme = createTheme({
   palette: {
@@ -73,6 +76,14 @@ function App() {
     <ActivityLogs />
   </PrivateRoute>
 } />
+
+
+<Route path="/profile" element={
+  <PrivateRoute>
+    <Profile />
+  </PrivateRoute>
+} />
+<Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </Router>

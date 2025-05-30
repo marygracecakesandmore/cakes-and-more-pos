@@ -2,6 +2,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import logo from '../assets/logo.png';
+import { Edit as EditIcon } from '@mui/icons-material';
 import { 
   AppBar, 
   Toolbar, 
@@ -538,11 +539,7 @@ const getNotificationColor = (type) => {
     <NotificationsIcon />
   </Badge>
 </IconButton>
-                  <IconButton color="inherit">
-                    <Badge badgeContent={userData?.points || 0} color="primary">
-                      <LoyaltyIcon />
-                    </Badge>
-                  </IconButton>
+                 
                 </>
               )}
               
@@ -663,6 +660,61 @@ const getNotificationColor = (type) => {
     )}
   </Paper>
 </Menu>
+
+
+<Menu
+  anchorEl={anchorEl}
+  open={Boolean(anchorEl)}
+  onClose={handleMenuClose}
+  PaperProps={{
+    sx: {
+      width: 240,
+      borderRadius: 2,
+      boxShadow: theme.shadows[8],
+      overflow: 'visible',
+      mt: 1.5,
+      '&:before': {
+        content: '""',
+        display: 'block',
+        position: 'absolute',
+        top: 0,
+        right: 14,
+        width: 10,
+        height: 10,
+        bgcolor: 'background.paper',
+        transform: 'translateY(-50%) rotate(45deg)',
+        zIndex: 0
+      }
+    }
+  }}
+  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+>
+  <MenuItem sx={{ py: 1.5, pointerEvents: 'none' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+      <Typography variant="subtitle1" fontWeight={600}>
+        {user.displayName || 'User'}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {user.email}
+      </Typography>
+    </Box>
+  </MenuItem>
+  <Divider sx={{ my: 1 }} />
+  <MenuItem 
+    component={Link} 
+    to="/profile" 
+    onClick={handleMenuClose}
+    sx={{ py: 1.5 }}
+  >
+    <EditIcon sx={{ mr: 2, color: 'text.secondary' }} />
+    <Typography variant="body1">Edit Profile</Typography>
+  </MenuItem>
+  <MenuItem onClick={() => auth.signOut()} sx={{ py: 1.5 }}>
+    <LogoutIcon sx={{ mr: 2, color: 'text.secondary' }} />
+    <Typography variant="body1">Logout</Typography>
+  </MenuItem>
+</Menu>
               
               {!isMobile && (
                 <Menu
@@ -703,6 +755,15 @@ const getNotificationColor = (type) => {
                       </Typography>
                     </Box>
                   </MenuItem>
+                  <MenuItem 
+  component={Link} 
+  to="/profile" 
+  onClick={handleMobileMenuClose}
+  sx={{ py: 1.5 }}
+>
+  <EditIcon sx={{ mr: 2, color: 'text.secondary' }} />
+  <Typography variant="body1">Edit Profile</Typography>
+</MenuItem>
                   <Divider sx={{ my: 1 }} />
                   <MenuItem onClick={() => auth.signOut()} sx={{ py: 1.5 }}>
                     <LogoutIcon sx={{ mr: 2, color: 'text.secondary' }} />

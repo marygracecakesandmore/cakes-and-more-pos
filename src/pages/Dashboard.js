@@ -116,6 +116,9 @@ const Dashboard = () => {
   start: format(new Date(), 'yyyy-MM-dd'),
   end: format(new Date(), 'yyyy-MM-dd')
 });
+const [allCustomers, setAllCustomers] = useState([]);
+const [showAllCustomersDialog, setShowAllCustomersDialog] = useState(false);
+const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [shiftNotes, setShiftNotes] = useState('');
@@ -1171,6 +1174,25 @@ const createShiftSwapRequestNotification = async (shiftId, reason, requestedById
   }
 };
 
+const fetchAllLoyaltyCustomers = async () => {
+  setIsLoadingCustomers(true);
+  try {
+    const q = query(collection(db, 'loyaltyCustomers'), orderBy('joinedAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    const customers = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      joinedAt: doc.data().joinedAt // Keep as timestamp
+    }));
+    setAllCustomers(customers);
+  } catch (error) {
+    console.error('Error fetching customers:', error);
+    showSnackbar('Error loading customers', 'error');
+  } finally {
+    setIsLoadingCustomers(false);
+  }
+};
+
 /**
  * Creates a notification when a manager accepts a shift swap request
  * @param {string} shiftId - The ID of the shift being swapped
@@ -2119,62 +2141,37 @@ useEffect(() => {
   }
 
   const searchCustomers = async () => {
-  try {
-    const searchTerm = customerSearch.toLowerCase();
-    const customersRef = collection(db, 'loyaltyCustomers');
-    
-    // Create a query that searches name, email, and cardNumber
-    const queries = [
-      query(
-        customersRef,
-        where('name', '>=', searchTerm),
-        where('name', '<=', searchTerm + '\uf8ff'),
-        limit(10)
-      ),
-      query(
-        customersRef,
-        where('email', '>=', searchTerm),
-        where('email', '<=', searchTerm + '\uf8ff'),
-        limit(10)
-      ),
-      query(
-        customersRef,
-        where('cardNumber', '>=', searchTerm),
-        where('cardNumber', '<=', searchTerm + '\uf8ff'),
-        limit(10)
-      )
-    ];
+    try {
+      const searchTerm = customerSearch.toLowerCase();
+      const customersRef = collection(db, 'loyaltyCustomers');
 
-    const querySnapshots = await Promise.all(queries.map(q => getDocs(q)));
-    
-    // Combine results and remove duplicates
-    const allResults = [];
-    const seenIds = new Set();
-    
-    querySnapshots.forEach(snapshot => {
-      snapshot.docs.forEach(doc => {
-        if (!seenIds.has(doc.id)) {
-          seenIds.add(doc.id);
-          allResults.push({
-            id: doc.id,
-            ...doc.data(),
-            points: doc.data().points || 0,
-            cardNumber: doc.data().cardNumber || 'N/A'
-          });
-        }
-      });
-    });
+      // Fetch up to 50 customers (adjust as needed)
+      const snapshot = await getDocs(query(customersRef, limit(50)));
 
-    setCustomerResults(allResults);
-  } catch (error) {
-    console.error('Error searching customers:', error);
-    showSnackbar('Error searching customers', 'error');
-  }
-};
+      const results = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(customer => {
+          const name = customer.name?.toLowerCase() || '';
+          const email = customer.email?.toLowerCase() || '';
+          const card = customer.cardNumber?.toLowerCase() || '';
+          return (
+            name.includes(searchTerm) ||
+            email.includes(searchTerm) ||
+            card.includes(searchTerm)
+          );
+        });
+
+      setCustomerResults(results);
+    } catch (error) {
+      console.error('Error searching customers:', error);
+      showSnackbar('Error searching customers', 'error');
+    }
+  };
 
   const timer = setTimeout(searchCustomers, 300);
   return () => clearTimeout(timer);
 }, [customerSearch]);
+
 
 const getBakerySuggestions = () => {
   const now = new Date();
@@ -3243,18 +3240,31 @@ const validateShiftStatus = (shift) => {
               <Loyalty />
             </Avatar>
           }
-          title="Loyalty Points Tracker"
-          titleTypographyProps={{ 
-            variant: 'h6', 
-            fontWeight: 'bold',
-            color: '#6f4e37',
-            fontFamily: '"Playfair Display", serif'
-          }}
-          sx={{
-            borderBottom: '1px solid #e0d6c2',
-            background: 'linear-gradient(to right, #ffffff 0%, #f8f3e9 100%)'
-          }}
-        />
+          action={
+    <Tooltip title="View all loyalty customers">
+      <IconButton 
+        onClick={() => {
+          setShowAllCustomersDialog(true);
+          fetchAllLoyaltyCustomers();
+        }}
+        sx={{ color: '#6f4e37' }}
+      >
+        <People />
+      </IconButton>
+    </Tooltip>
+  }
+  title="Loyalty Points Tracker"
+  titleTypographyProps={{ 
+    variant: 'h6', 
+    fontWeight: 'bold',
+    color: '#6f4e37',
+    fontFamily: '"Playfair Display", serif'
+  }}
+  sx={{
+    borderBottom: '1px solid #e0d6c2',
+    background: 'linear-gradient(to right, #ffffff 0%, #f8f3e9 100%)'
+  }}
+/>
         <CardContent>
           <Autocomplete
             freeSolo
@@ -3382,6 +3392,130 @@ const validateShiftStatus = (shift) => {
         </CardContent>
       </Card>
     </Grid>
+
+    <Dialog 
+  open={showAllCustomersDialog} 
+  onClose={() => setShowAllCustomersDialog(false)}
+  maxWidth="lg"
+  fullWidth
+  PaperProps={{
+    sx: {
+      borderRadius: '16px',
+      background: 'linear-gradient(to bottom, #ffffff 0%, #fff9f0 100%)',
+      border: '1px solid #e0d6c2'
+    }
+  }}
+>
+  <DialogTitle sx={{ 
+    backgroundColor: '#f8f3e9',
+    borderBottom: '1px solid #e0d6c2',
+    color: '#6f4e37',
+    fontFamily: '"Playfair Display", serif',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  }}>
+    <Box display="flex" alignItems="center">
+      <span>All Loyalty Customers</span>
+      <Tooltip title="Refresh">
+        <IconButton 
+          onClick={fetchAllLoyaltyCustomers} 
+          sx={{ ml: 1, color: '#6f4e37' }}
+          disabled={isLoadingCustomers}
+        >
+          <Refresh />
+        </IconButton>
+      </Tooltip>
+    </Box>
+    <IconButton onClick={() => setShowAllCustomersDialog(false)}>
+      <Close sx={{ color: '#6f4e37' }} />
+    </IconButton>
+  </DialogTitle>
+  <DialogContent sx={{ backgroundColor: '#fff9f0', p: 0 }}>
+    {isLoadingCustomers ? (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress sx={{ color: '#6f4e37' }} />
+      </Box>
+    ) : (
+      <TableContainer sx={{ maxHeight: '60vh' }}>
+        <Table stickyHeader size="small">
+          <TableHead>
+            <TableRow sx={{ backgroundColor: '#f8f3e9' }}>
+              <TableCell sx={{ color: '#6f4e37', fontWeight: 'bold' }}>Name</TableCell>
+              <TableCell sx={{ color: '#6f4e37', fontWeight: 'bold' }}>Email</TableCell>
+              <TableCell sx={{ color: '#6f4e37', fontWeight: 'bold' }}>Phone</TableCell>
+              <TableCell sx={{ color: '#6f4e37', fontWeight: 'bold' }}>Card Number</TableCell>
+              <TableCell sx={{ color: '#6f4e37', fontWeight: 'bold' }}>Points</TableCell>
+              <TableCell sx={{ color: '#6f4e37', fontWeight: 'bold' }}>Joined Date</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {allCustomers.length > 0 ? (
+              allCustomers.map((customer) => (
+                <TableRow 
+                  key={customer.id}
+                  hover
+                  sx={{ 
+                    '&:nth-of-type(odd)': { backgroundColor: 'rgba(255, 255, 255, 0.5)' },
+                    '&:nth-of-type(even)': { backgroundColor: 'rgba(248, 243, 233, 0.5)' },
+                    '&:hover': { backgroundColor: 'rgba(212, 167, 98, 0.1)' },
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => {
+                    setSelectedCustomer(customer);
+                    setShowAllCustomersDialog(false);
+                    setShowLoyaltyDialog(true);
+                    fetchAvailableRewards();
+                  }}
+                >
+                  <TableCell>{customer.name || '-'}</TableCell>
+                  <TableCell>{customer.email}</TableCell>
+                  <TableCell>{customer.phone || '-'}</TableCell>
+                  <TableCell>{customer.cardNumber || '-'}</TableCell>
+                  <TableCell>{customer.points || 0}</TableCell>
+                  <TableCell>
+                    {customer.joinedAt?.toDate ? 
+                      customer.joinedAt.toDate().toLocaleString() : 
+                      '-'}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} align="center" sx={{ py: 3 }}>
+                  <Typography variant="body2" color="textSecondary">
+                    No loyalty customers found
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    )}
+  </DialogContent>
+  <DialogActions sx={{ 
+    backgroundColor: '#f8f3e9', 
+    borderTop: '1px solid #e0d6c2',
+    padding: '8px 16px'
+  }}>
+    <Typography variant="caption" sx={{ color: '#9c8c72', mr: 1 }}>
+      {allCustomers.length} customer(s) registered
+    </Typography>
+    <Button 
+      onClick={() => setShowAllCustomersDialog(false)}
+      sx={{ 
+        color: '#6f4e37',
+        fontWeight: 'bold',
+        '&:hover': {
+          backgroundColor: 'rgba(111, 78, 55, 0.08)'
+        }
+      }}
+    >
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
 
     {/* Active Orders Card - Coffee Themed */}
     <Grid item xs={12} md={6}>
