@@ -96,6 +96,7 @@ const [snackbar, setSnackbar] = useState({
   message: '',
   severity: 'success' // can be 'error', 'warning', 'info', 'success'
 });
+const [byoCupDiscount, setByoCupDiscount] = useState(false);
 
 // Add this useEffect to fetch loyalty rewards
 useEffect(() => {
@@ -145,8 +146,8 @@ const handleApplyReward = (reward) => {
   // Handle different reward types
   if (reward.name.includes('%')) {
     const percentage = parseFloat(reward.name.replace('%', '')) / 100;
-    const discount = totalAmount * percentage;
-    setDiscountApplied(discount);
+    const discount = (totalAmount - (byoCupDiscount ? 1 : 0)) * percentage; // Subtract BYO Cup discount first
+    setDiscountApplied((byoCupDiscount ? 1 : 0) + discount); // Add to existing BYO Cup discount
     showSnackbar(`${reward.name} discount applied!`, 'success');
   } else if (reward.name.includes('Free')) {
     const freeItem = {
@@ -169,7 +170,8 @@ const handleRemoveReward = () => {
       setItems(items.filter(item => !item.isReward || item.rewardId !== selectedReward.id));
     }
     setSelectedReward(null);
-    setDiscountApplied(0);
+    // Only remove the reward discount, keep BYO Cup discount if applied
+    setDiscountApplied(byoCupDiscount ? 1 : 0);
     showSnackbar('Reward removed', 'info');
   }
 };
@@ -395,6 +397,7 @@ const showSnackbar = (message, severity = 'success') => {
     handleRemoveItem(productId);
     return;
   }
+  
 
   // Get fresh stock data from Firestore
   const productRef = doc(db, 'products', productId);
@@ -463,6 +466,21 @@ const checkStockAvailability = async (itemsToCheck) => {
   return stockValidationErrors;
 };
 
+// Add this function to handle BYO cup discount
+const handleByoCupDiscount = () => {
+  if (byoCupDiscount) {
+    // Remove discount
+    setByoCupDiscount(false);
+    setDiscountApplied(prev => prev - 1);
+    showSnackbar('BYO Cup discount removed', 'info');
+  } else {
+    // Apply discount
+    setByoCupDiscount(true);
+    setDiscountApplied(prev => prev + 1);
+    showSnackbar('K1 discount applied for BYO Cup', 'success');
+  }
+};
+
 
 
   // Update the submitOrder function
@@ -522,7 +540,7 @@ const submitOrder = async (orderData) => {
       
       // Calculate points only if customer exists in loyalty program
       if (selectedCustomer) {
-        pointsEarned = Math.floor((paidItemsTotal - discountApplied) / 50);
+        pointsEarned = Math.floor((paidItemsTotal - discountApplied) / 10);
         
         if (selectedReward) {
           pointsDeducted = selectedReward.pointsRequired;
@@ -554,11 +572,13 @@ const submitOrder = async (orderData) => {
       pointsDeducted,
       discountApplied: discountApplied,
       rewardUsed: selectedReward ? selectedReward.name : null,
+      byoCupDiscount: byoCupDiscount,
       payment: {
         pointsEarned,
         pointsDeducted,
         discountAmount: discountApplied,
-        rewardUsed: selectedReward ? selectedReward.name : null
+        rewardUsed: selectedReward ? selectedReward.name : null,
+        byoCupDiscount: byoCupDiscount
       }
     });
 
@@ -1049,18 +1069,25 @@ batch.set(activityLogRef, {
                         fontSize: '1rem'
                       }}>
                         <Box>
-                          <Typography>K{totalAmount.toFixed(2)}</Typography>
-                          {discountApplied > 0 && (
-                            <>
-                              <Typography variant="body2" color="error.main">
-                                - K{discountApplied.toFixed(2)} (Discount)
-                              </Typography>
-                              <Typography variant="subtitle1">
-                                K{(totalAmount - discountApplied).toFixed(2)}
-                              </Typography>
-                            </>
-                          )}
-                        </Box>
+  <Typography>K{totalAmount.toFixed(2)}</Typography>
+  {discountApplied > 0 && (
+    <>
+      {byoCupDiscount && (
+        <Typography variant="body2" color="error.main">
+          - K1.00 (BYO Cup)
+        </Typography>
+      )}
+      {selectedReward && (
+        <Typography variant="body2" color="error.main">
+          - K{(discountApplied - (byoCupDiscount ? 1 : 0)).toFixed(2)} ({selectedReward.name})
+        </Typography>
+      )}
+      <Typography variant="subtitle1">
+        K{(totalAmount - discountApplied).toFixed(2)}
+      </Typography>
+    </>
+  )}
+</Box>
                       </TableCell>
                     </TableRow>
                   </TableBody>
@@ -1133,6 +1160,68 @@ batch.set(activityLogRef, {
           )}
         </Card>
       </Grid>
+
+      <Grid item xs={12} md={6}>
+  <Card elevation={0} sx={{ 
+    background: 'white',
+    borderRadius: '16px',
+    border: '1px solid #e0e0e0',
+    p: 2
+  }}>
+    <Box display="flex" alignItems="center" mb={1}>
+      <LocalOffer color="primary" sx={{ mr: 1, fontSize: '20px' }} />
+      <Typography variant="subtitle1" fontWeight="500">Discounts</Typography>
+    </Box>
+    
+    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 2 }}>
+      <Button 
+        variant={byoCupDiscount ? "contained" : "outlined"} 
+        onClick={handleByoCupDiscount}
+        sx={{
+          borderRadius: '12px',
+          textTransform: 'none',
+          backgroundColor: byoCupDiscount ? 'success.main' : undefined,
+          '&:hover': {
+            backgroundColor: byoCupDiscount ? 'success.dark' : undefined
+          }
+        }}
+      >
+        BYO Cup (K1 Off)
+      </Button>
+    </Box>
+    
+    {customerName && (
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Button 
+          variant="outlined" 
+          onClick={handleShowRewards}
+          disabled={
+            !loyaltyCustomers.some(
+              c => c.name === customerName || 
+                   customerName.includes(c.cardNumber) || 
+                   c.cardNumber === customerName
+            ) || 
+            selectedReward
+          }
+          sx={{
+            borderRadius: '12px',
+            textTransform: 'none'
+          }}
+        >
+          {selectedReward ? 'Reward Applied' : 'Use Rewards'}
+        </Button>
+        {selectedReward && (
+          <Chip 
+            label={`${selectedReward.name} applied`}
+            onDelete={handleRemoveReward}
+            color="success"
+            sx={{ borderRadius: '8px' }}
+          />
+        )}
+      </Box>
+    )}
+  </Card>
+</Grid>
 
       {/* Cross-sell Suggestions */}
       {crossSellSuggestions.length > 0 && (

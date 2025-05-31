@@ -183,7 +183,7 @@ const [
     const weeklyRevenue = weeklySnapshot.docs.reduce((sum, doc) => sum + (doc.data().total || 0), 0);
 
     // Fetch staff data
-    const staffQuery = query(collection(db, 'users'), where('role', 'in', ['staff', 'barista', 'cashier']));
+    const staffQuery = query(collection(db, 'users'), where('role', 'in', ['staff', 'pastrychef', 'cashier']));
     const staffSnapshot = await getDocs(staffQuery);
 
     // Fetch products data for inventory value

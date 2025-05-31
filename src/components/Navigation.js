@@ -242,7 +242,7 @@ const getNotificationColor = (type) => {
       </Button>
       {user && (
         <>
-          {(userData?.role === 'staff' || userData?.role === 'barista' || userData?.role === 'cashier' || userData?.role === 'shift-lead' || userData?.role === 'manager' || userData?.role === 'admin' || userData?.role === 'owner') && (
+          {(userData?.role === 'staff' || userData?.role === 'pastrychef' || userData?.role === 'cashier' || userData?.role === 'shift-lead' || userData?.role === 'manager' || userData?.role === 'admin' || userData?.role === 'owner') && (
             <>
               <Button 
                 component={Link} 
@@ -391,7 +391,7 @@ const getNotificationColor = (type) => {
       
       {user && (
         <>
-          {(userData?.role === 'staff' || userData?.role === 'barista' || userData?.role === 'cashier' || userData?.role === 'shift-lead' || userData?.role === 'manager' || userData?.role === 'admin' || userData?.role === 'owner') && (
+          {(userData?.role === 'staff' || userData?.role === 'pastrychef' || userData?.role === 'cashier' || userData?.role === 'shift-lead' || userData?.role === 'manager' || userData?.role === 'admin' || userData?.role === 'owner') && (
             <>
               <MenuItem 
                 component={Link} 

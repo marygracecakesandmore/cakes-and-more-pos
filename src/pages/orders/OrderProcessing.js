@@ -94,8 +94,10 @@ React.useEffect(() => {
 
   const handlePayment = async () => {
   const amount = parseFloat(paymentAmount);
-  if (isNaN(amount) || amount < order.total) {
-    alert(`Payment amount must be at least K${order.total.toFixed(2)}`);
+  const discountedTotal = order.total - (order.discountApplied || 0); // This now includes BYO Cup discount
+  
+  if (isNaN(amount) || amount < discountedTotal) {
+    alert(`Payment amount must be at least K${discountedTotal.toFixed(2)}`);
     return;
   }
 
@@ -273,22 +275,41 @@ const printReceipt = () => {
         <div class="divider"></div>
         
         <table>
-          ${order.discountApplied > 0 ? `
+          <!-- Display Subtotal -->
+          <tr>
+            <td>Subtotal:</td>
+            <td class="text-right">K${(order.total + order.discountApplied).toFixed(2)}</td>
+          </tr>
+          
+          <!-- Display BYO Cup Discount if applied -->
+          ${order.byoCupDiscount ? `
             <tr>
-              <td class="text-error">${order.rewardUsed || 'Discount'}:</td>
-              <td class="text-right text-error">-K${order.discountApplied.toFixed(2)}</td>
+              <td class="text-error">BYO Cup Discount:</td>
+              <td class="text-right text-error">-K1.00</td>
             </tr>
           ` : ''}
           
-          <tr>
-  <td class="text-bold">Total:</td>
-  <td class="text-right text-bold">K${order.total?.toFixed(2) || '0.00'}</td>
-</tr>
-<tr>
-  <td>Includes 10% GST:</td>
-  <td class="text-right">K${order.gstAmount?.toFixed(2) || '0.00'}</td>
-</tr>
+          <!-- Display Reward Discount if applied -->
+          ${order.rewardUsed && (order.discountApplied > (order.byoCupDiscount ? 1 : 0)) ? `
+            <tr>
+              <td class="text-error">${order.rewardUsed}:</td>
+              <td class="text-right text-error">-K${(order.discountApplied - (order.byoCupDiscount ? 1 : 0)).toFixed(2)}</td>
+            </tr>
+          ` : ''}
           
+          <!-- Display Total -->
+          <tr>
+            <td class="text-bold">Total:</td>
+            <td class="text-right text-bold">K${order.total?.toFixed(2) || '0.00'}</td>
+          </tr>
+          
+          <!-- Display GST -->
+          <tr>
+            <td>Includes 10% GST:</td>
+            <td class="text-right">K${order.gstAmount?.toFixed(2) || '0.00'}</td>
+          </tr>
+          
+          <!-- Display Payment Details if paid -->
           ${order.payment ? `
             <tr>
               <td>Payment Method:</td>
@@ -312,6 +333,25 @@ const printReceipt = () => {
             </tr>
           ` : ''}
         </table>
+        
+        <!-- Display Points Earned/Deducted if applicable -->
+        ${(order.pointsEarned > 0 || order.pointsDeducted > 0) ? `
+          <div class="divider"></div>
+          <table>
+            ${order.pointsEarned > 0 ? `
+              <tr>
+                <td>Points Earned:</td>
+                <td class="text-right">+${order.pointsEarned} pts</td>
+              </tr>
+            ` : ''}
+            ${order.pointsDeducted > 0 ? `
+              <tr>
+                <td>Points Redeemed:</td>
+                <td class="text-right">-${order.pointsDeducted} pts</td>
+              </tr>
+            ` : ''}
+          </table>
+        ` : ''}
         
         <div class="divider"></div>
         
@@ -509,113 +549,132 @@ const printReceipt = () => {
           <Grid item xs={12} md={6}>
             {order.status === 'pending' ? (
   <Paper elevation={0} sx={{ p: 2, mb: 2 }}>
-  <Typography variant="subtitle1" gutterBottom>
-    Process Payment
-  </Typography>
-  
-  {/* Add rewards summary before payment */}
-  {order.discountApplied > 0 && (
+    <Typography variant="subtitle1" gutterBottom>
+      Process Payment
+    </Typography>
+    
+    {/* Add rewards summary before payment */}
+    {order.discountApplied > 0 && (
+      <Box sx={{ 
+        backgroundColor: '#e8f5e9', 
+        p: 2, 
+        mb: 2, 
+        borderRadius: 1 
+      }}>
+        <Typography variant="body2">
+          <strong>Applied Discount:</strong> {order.rewardUsed || 'BYO Cup'}
+        </Typography>
+        <Typography variant="body2">
+          <strong>Discount Amount:</strong> -K{order.discountApplied.toFixed(2)}
+        </Typography>
+        {order.pointsDeducted > 0 && (
+          <Typography variant="body2">
+            <strong>Points Deducted:</strong> {order.pointsDeducted} pts
+          </Typography>
+        )}
+      </Box>
+    )}
+
+    {/* Add GST information */}
     <Box sx={{ 
-      backgroundColor: '#e8f5e9', 
+      backgroundColor: '#f5f5f5', 
       p: 2, 
       mb: 2, 
       borderRadius: 1 
     }}>
       <Typography variant="body2">
-        <strong>Applied Reward:</strong> {order.rewardUsed}
+        <strong>Subtotal:</strong> K{(order.total + (order.discountApplied || 0)).toFixed(2)}
       </Typography>
-      <Typography variant="body2">
-        <strong>Discount Amount:</strong> -K{order.discountApplied.toFixed(2)}
-      </Typography>
-      {order.pointsDeducted > 0 && (
+      {order.discountApplied > 0 && (
         <Typography variant="body2">
-          <strong>Points Deducted:</strong> {order.pointsDeducted} pts
+          <strong>Discount:</strong> -K{order.discountApplied.toFixed(2)}
         </Typography>
       )}
+      <Typography variant="body2">
+        <strong>Total Amount:</strong> K{order.total?.toFixed(2) || '0.00'}
+      </Typography>
+      <Typography variant="body2">
+        <strong>Includes 10% GST:</strong> K{order.gstAmount?.toFixed(2) || '0.00'}
+      </Typography>
     </Box>
-  )}
 
-  {/* Add GST information */}
-  <Box sx={{ 
-  backgroundColor: '#f5f5f5', 
-  p: 2, 
-  mb: 2, 
-  borderRadius: 1 
-}}>
-  <Typography variant="body2">
-    <strong>Total Amount:</strong> K{order.total?.toFixed(2) || '0.00'}
-  </Typography>
-  <Typography variant="body2">
-    <strong>Includes 10% GST:</strong> K{order.gstAmount?.toFixed(2) || '0.00'}
-  </Typography>
-</Box>
-
-  <TextField
-    fullWidth
-    label="Amount Tendered"
-    type="number"
-    value={paymentAmount}
-    onChange={(e) => setPaymentAmount(e.target.value)}
-    error={paymentAmount && parseFloat(paymentAmount) < (order.total - (order.discountApplied || 0))}
-    helperText={
-      paymentAmount && parseFloat(paymentAmount) < (order.total - (order.discountApplied || 0)) ? 
-      `Amount must be at least K${(order.total - (order.discountApplied || 0)).toFixed(2)}` : ''
-    }
-    sx={{ mb: 2 }}
-    InputProps={{
-      startAdornment: <InputAdornment position="start">K</InputAdornment>,
-    }}
-  />
-                <TextField
-  fullWidth
-  select
-  label="Payment Method"
-  value={paymentMethod}
-  onChange={(e) => setPaymentMethod(e.target.value)}
-  sx={{ mb: 2 }}
->
-  <MenuItem value="cash">Cash</MenuItem>
-  <MenuItem value="card">Debit/Visa Card</MenuItem>
-  <MenuItem value="mobile">Transfer/SMS</MenuItem>
-</TextField>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  color="primary"
-                  startIcon={<PaymentIcon />}
-                  onClick={handlePayment}
-                  disabled={!paymentAmount}
-                >
-                  Complete Payment
-                </Button>
-              </Paper>
-            ) : (
+    <TextField
+      fullWidth
+      label="Amount Tendered"
+      type="number"
+      value={paymentAmount}
+      onChange={(e) => setPaymentAmount(e.target.value)}
+      error={paymentAmount && parseFloat(paymentAmount) < order.total}
+      helperText={
+        paymentAmount && parseFloat(paymentAmount) < order.total ? 
+        `Amount must be at least K${order.total.toFixed(2)}` : 
+        `Total amount to pay: K${order.total.toFixed(2)}`
+      }
+      sx={{ mb: 2 }}
+      InputProps={{
+        startAdornment: <InputAdornment position="start">K</InputAdornment>,
+      }}
+    />
+    
+    <TextField
+      fullWidth
+      select
+      label="Payment Method"
+      value={paymentMethod}
+      onChange={(e) => setPaymentMethod(e.target.value)}
+      sx={{ mb: 2 }}
+    >
+      <MenuItem value="cash">Cash</MenuItem>
+      <MenuItem value="card">Debit/Visa Card</MenuItem>
+      <MenuItem value="mobile">Transfer/SMS</MenuItem>
+    </TextField>
+    
+    <Button
+      fullWidth
+      variant="contained"
+      color="primary"
+      startIcon={<PaymentIcon />}
+      onClick={handlePayment}
+      disabled={!paymentAmount}
+    >
+      Complete Payment
+    </Button>
+  </Paper>
+) : (
               <Paper elevation={0} sx={{ p: 2, mb: 2 }}>
     <Typography variant="subtitle1" gutterBottom>
       Payment Details
     </Typography>
     
     {order.discountApplied > 0 && (
-      <Box sx={{ mb: 2, p: 1, backgroundColor: '#e8f5e9', borderRadius: 1 }}>
+  <Box sx={{ 
+    backgroundColor: '#e8f5e9', 
+    p: 2, 
+    mb: 2, 
+    borderRadius: 1 
+  }}>
+    {order.byoCupDiscount && (
+      <Typography variant="body2">
+        <strong>BYO Cup Discount:</strong> -K1.00
+      </Typography>
+    )}
+    {order.rewardUsed && (
+      <>
         <Typography variant="body2">
           <strong>Reward Applied:</strong> {order.rewardUsed}
         </Typography>
         <Typography variant="body2">
-          <strong>Discount:</strong> -K{order.discountApplied.toFixed(2)}
+          <strong>Reward Discount:</strong> -K{(order.discountApplied - (order.byoCupDiscount ? 1 : 0)).toFixed(2)}
         </Typography>
-        {order.pointsDeducted > 0 && (
-          <Typography variant="body2">
-            <strong>Points Used:</strong> {order.pointsDeducted} pts
-          </Typography>
-        )}
-        {order.pointsEarned > 0 && (
-          <Typography variant="body2">
-            <strong>Points Earned:</strong> +{order.pointsEarned} pts
-          </Typography>
-        )}
-      </Box>
+      </>
     )}
-    
+    {order.pointsDeducted > 0 && (
+      <Typography variant="body2">
+        <strong>Points Deducted:</strong> {order.pointsDeducted} pts
+      </Typography>
+    )}
+  </Box>
+)}
     <Box sx={{ mb: 2 }}>
       <Typography variant="body2">
         <strong>Status:</strong> Completed

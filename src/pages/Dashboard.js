@@ -174,7 +174,7 @@ const [newShift, setNewShift] = useState({
   date: format(new Date(), 'yyyy-MM-dd'),
   startTime: '09:00',
   endTime: '17:00',
-  role: 'barista'
+  role: 'pastrychef'
 });
 const [showAddRewardDialog, setShowAddRewardDialog] = useState(false);
 const [newReward, setNewReward] = useState({
@@ -647,7 +647,7 @@ const [showAllFeedbackDialog, setShowAllFeedbackDialog] = useState(false);
 
 // Updated queue listener with proper error handling
 useEffect(() => {
-  if (!userData || (userData?.role !== 'manager' && userData?.role !== 'staff' && userData?.role !== 'barista' 
+  if (!userData || (userData?.role !== 'manager' && userData?.role !== 'staff' && userData?.role !== 'pastrychef' 
     && userData?.role !== 'cashier' && userData?.role !== 'shift-lead'
   )) return;
 
@@ -1590,7 +1590,7 @@ const handleAssignShift = async () => {
       date: format(new Date(), 'yyyy-MM-dd'),
       startTime: '09:00',
       endTime: '17:00',
-      role: 'barista'
+      role: 'pastrychef'
     });
     
     showSnackbar('Shift assigned successfully!', 'success');
@@ -1601,7 +1601,7 @@ const handleAssignShift = async () => {
 };
 
 const fetchAllStaff = async () => {
-  const q = query(collection(db, 'users'), where('role', 'in', ['staff', 'barista', 'cashier', 'shift-lead']));
+  const q = query(collection(db, 'users'), where('role', 'in', ['staff', 'pastrychef', 'cashier', 'shift-lead']));
   const querySnapshot = await getDocs(q);
   const staffData = querySnapshot.docs.map(doc => ({
     id: doc.id,
@@ -1623,7 +1623,7 @@ useEffect(() => {
   if (userData?.role !== 'manager') return;
   
   const fetchStaff = async () => {
-    const q = query(collection(db, 'users'), where('role', '==', 'staff', 'barista', 'cashier', 'shift-lead'));
+    const q = query(collection(db, 'users'), where('role', '==', 'staff', 'pastrychef', 'cashier', 'shift-lead'));
     const querySnapshot = await getDocs(q);
     const staffData = querySnapshot.docs.map(doc => ({
       id: doc.id,
@@ -7518,7 +7518,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                   fontWeight: 600
                 }
               }}>
-                <TableCell>Barista</TableCell>
+                <TableCell>Pastry Chef</TableCell>
                 <TableCell align="right">Orders</TableCell>
                 <TableCell align="right">Sales</TableCell>
                 <TableCell align="right">Efficiency</TableCell>
@@ -8538,7 +8538,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
                         onChange={(e) => handleUpdateStaffRole(staff.id, e.target.value)}
                         size="small"
                       >
-                        <MenuItem value="barista">Barista</MenuItem>
+                        <MenuItem value="pastrychef">Pastry Chef</MenuItem>
                         <MenuItem value="cashier">Cashier</MenuItem>
                         <MenuItem value="shift-lead">Shift Lead</MenuItem>
                       </Select>
@@ -8896,7 +8896,7 @@ const requestRef = doc(db, 'shiftSwapRequests', requestId);
       onChange={(e) => setNewShift({...newShift, role: e.target.value})}
       sx={{ mt: 2 }}
     >
-      <MenuItem value="barista">Barista</MenuItem>
+      <MenuItem value="pastrychef">Pastry Chef</MenuItem>
       <MenuItem value="cashier">Cashier</MenuItem>
       <MenuItem value="shift-lead">Shift Lead</MenuItem>
     </TextField>
@@ -9052,7 +9052,7 @@ const renderOwnerDashboard = () => {
 
     switch(userData.role) {
       case 'staff':
-      case 'barista':
+      case 'pastrychef':
       case 'cashier':
       case 'shift-lead':
         return renderStaffDashboard();
